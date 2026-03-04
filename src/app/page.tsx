@@ -976,8 +976,7 @@ export default function Dashboard() {
                 🔄 Atualizar
               </button>
             </header>
-
-            <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+            <div className="dashboard-grid">
               {/* CALENDÁRIO */}
               <div className="fecd-card">
                 <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse("calendar")}>
