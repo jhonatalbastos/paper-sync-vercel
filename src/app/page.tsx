@@ -187,6 +187,10 @@ export default function Dashboard() {
         body: JSON.stringify(sourceData),
       });
 
+      if (!res.ok) {
+        throw new Error("Erro na geração do PDF no servidor");
+      }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

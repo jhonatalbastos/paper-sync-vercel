@@ -47,8 +47,9 @@ def draw_capture_box(p, width):
 
 def draw_wrapped_line(p, text, x, y, max_width, checkbox=True, is_overdue=False):
     """Auxiliar para desenhar texto com quebra de linha."""
+    safe_text = str(text) if text is not None else ""
     limit_width = max_width - (1.5*cm if checkbox else 0.5*cm)
-    lines = simpleSplit(text, p._fontname, p._fontsize, limit_width)
+    lines = simpleSplit(safe_text, p._fontname, p._fontsize, limit_width)
     current_y = y
     for i, line in enumerate(lines):
         if i == 0:
@@ -133,8 +134,14 @@ def generate_gtd_page(data):
                 y = start_new_page(p)
                 current_y_limit = y_limit_other_pages
                 p.setFont("Helvetica", 9)
-            title = t.get('title') if isinstance(t, dict) else t
-            y = draw_wrapped_line(p, title, 2.2*cm, y, max_w, checkbox=True)
+            
+            # Ajuste para campos 'text' (frontend) ou 'title' (M365)
+            if isinstance(t, dict):
+                content = t.get('text') or t.get('title') or ""
+            else:
+                content = str(t)
+                
+            y = draw_wrapped_line(p, content, 2.2*cm, y, max_w, checkbox=True)
             y -= 0.05*cm
         y -= 0.3*cm
 
@@ -168,20 +175,25 @@ def generate_gtd_page(data):
     # Mesclar com o papel timbrado em TODAS as páginas
     template_path = os.path.join(os.path.dirname(__file__), "assets", "template_fecd.pdf")
     if os.path.exists(template_path):
-        overlay_pdf = PdfReader(temp_buffer)
-        output = PdfWriter()
-        
-        for page_ovl in overlay_pdf.pages:
-            # Recarregar o template para cada página para garantir que são cópias limpas
-            template_pdf = PdfReader(template_path)
-            bg_page = template_pdf.pages[0]
-            bg_page.merge_page(page_ovl)
-            output.add_page(bg_page)
-        
-        final_buffer = BytesIO()
-        output.write(final_buffer)
-        final_buffer.seek(0)
-        return final_buffer
+        try:
+            overlay_pdf = PdfReader(temp_buffer)
+            output = PdfWriter()
+            
+            for page_ovl in overlay_pdf.pages:
+                # Recarregar o template para cada página para garantir que são cópias limpas
+                template_pdf = PdfReader(template_path)
+                bg_page = template_pdf.pages[0]
+                bg_page.merge_page(page_ovl)
+                output.add_page(bg_page)
+            
+            final_buffer = BytesIO()
+            output.write(final_buffer)
+            final_buffer.seek(0)
+            return final_buffer
+        except Exception as e:
+            print(f"Erro ao mesclar PDF: {e}")
+            temp_buffer.seek(0)
+            return temp_buffer
     
     temp_buffer.seek(0)
     return temp_buffer
