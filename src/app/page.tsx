@@ -555,7 +555,7 @@ export default function Dashboard() {
             </div>
           </div>
         );
-      case "Projetos":
+      case "Radar":
         const activeProjects = data.radar.filter((p: any) => !archivedProjects.includes(p.id));
         const completedProjectsList = data.radar.filter((p: any) => archivedProjects.includes(p.id));
 
@@ -656,7 +656,7 @@ export default function Dashboard() {
             )}
           </div>
         );
-      case "Impressao":
+      case "Mapa":
         const initPrint = () => {
           if (printSelections) return;
           const initial = {
