@@ -189,7 +189,7 @@ def get_clarify_data(token: str):
         params={
             "$filter": "flag/flagStatus eq 'flagged'", 
             "$top": 80, 
-            "$select": "subject,from,receivedDateTime,id,parentFolderId,body"
+            "$select": "subject,from,receivedDateTime,id,parentFolderId,body,webLink,hasAttachments"
         }
     )
     all_emails = mail_res.json().get("value", [])

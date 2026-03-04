@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 
+const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [loading, setLoading] = useState(true);
@@ -250,6 +252,28 @@ export default function Dashboard() {
       setLoadingForm(false);
     };
 
+    const [attachments, setAttachments] = useState<any[]>([]);
+    const [loadingAttachments, setLoadingAttachments] = useState(false);
+    const [showAttachments, setShowAttachments] = useState(false);
+
+    const fetchAttachments = async () => {
+      if (attachments.length > 0) {
+        setShowAttachments(!showAttachments);
+        return;
+      }
+      setLoadingAttachments(true);
+      const token = localStorage.getItem("ms_token");
+      try {
+        const res = await fetch(`${GRAPH_BASE}/me/messages/${item.id}/attachments`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setAttachments(data.value || []);
+        setShowAttachments(true);
+      } catch (e) { console.error(e); }
+      setLoadingAttachments(false);
+    };
+
     return (
       <div className="fecd-card compact-clarify-card" style={{ position: 'relative' }}>
         <div style={{ position: 'absolute', top: '8px', right: '12px', display: 'flex', gap: '6px' }}>
@@ -260,13 +284,51 @@ export default function Dashboard() {
         <div style={{ paddingRight: '80px' }}>
           <p style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--m3-on-surface)', lineHeight: 1.2 }}>{item.subject || item.text}</p>
           {item.body && (
-            <button
-              onClick={() => setIsViewing(!isViewing)}
-              style={{ fontSize: '0.65rem', color: 'var(--m3-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '6px', fontWeight: 600 }}
-            >
-              {isViewing ? "🔼 Recolher conteúdo" : "🔽 Espiar e-mail"}
-            </button>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '6px' }}>
+              <button
+                onClick={() => setIsViewing(!isViewing)}
+                style={{ fontSize: '0.65rem', color: 'var(--m3-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+              >
+                {isViewing ? "🔼 Recolher conteúdo" : "🔽 Espiar e-mail"}
+              </button>
+
+              {item.webLink && (
+                <a
+                  href={item.webLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: '0.65rem', color: 'var(--m3-secondary)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}
+                >
+                  🔗 Ver no Outlook
+                </a>
+              )}
+
+              {item.hasAttachments && (
+                <button
+                  onClick={fetchAttachments}
+                  style={{ fontSize: '0.65rem', color: '#af52bf', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                >
+                  {loadingAttachments ? "⌛ Carregando..." : "📎 Anexos"}
+                </button>
+              )}
+            </div>
           )}
+
+          {showAttachments && attachments.length > 0 && (
+            <div style={{ background: 'var(--m3-primary-container)', padding: '6px 12px', borderRadius: '8px', marginBottom: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {attachments.map((att: any) => (
+                <a
+                  key={att.id}
+                  href={`data:${att.contentType};base64,${att.contentBytes}`}
+                  download={att.name}
+                  style={{ fontSize: '0.7rem', color: 'var(--m3-on-primary-container)', textDecoration: 'none', background: 'white', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--m3-primary)' }}
+                >
+                  📥 {att.name}
+                </a>
+              ))}
+            </div>
+          )}
+
           {isViewing && item.body && (
             <div
               className="email-preview-container"
