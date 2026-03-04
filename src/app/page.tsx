@@ -395,7 +395,7 @@ export default function Dashboard() {
         };
 
         return (
-          <div className="tab-content" style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <div className="tab-content" style={{ width: '100%', margin: '0 auto' }}>
             <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h2 className="page-title">🧠 Esclarecer</h2>
@@ -438,7 +438,7 @@ export default function Dashboard() {
         const completedProjectsList = data.radar.filter((p: any) => archivedProjects.includes(p.id));
 
         return (
-          <div className="tab-content" style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div className="tab-content" style={{ width: '100%', margin: '0 auto' }}>
             <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h2 className="page-title">🤝 Radar de Delegação</h2>
