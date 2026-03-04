@@ -24,12 +24,16 @@ def process_scan_with_ai(image_bytes=None):
     
     prompt = """
     Aja como um assistente GTD. Analise as notas capturadas no rodapé de uma folha de tarefas analógica.
-    As notas podem estar desorganizadas. Extraia apenas as tarefas e pensamentos acionáveis.
+    Extraia tarefas e pensamentos acionáveis.
     
-    Exemplo de entrada: "comprar leite, projeto casa nova, ligar pro mecanico"
-    Exemplo de saída: ["Comprar leite", "Projeto: Casa nova", "Ligar para o mecânico"]
+    REGRAS ESPECIAIS:
+    1. Se a nota parecer um compromisso com data ou hora (ex: "reunião amanhã", "dentista sexta"), adicione o prefixo "CAL: ".
+    2. Se a nota mencionar que está esperando alguém, use o prefixo "@Espera: ".
     
-    Entrada atual: "Adicionar no pedido de Carta de Circularização as contas que não estão listadas, revisar contrato aluguel, @espera: resposta bradesco"
+    Exemplo de entrada: "comprar leite, dentista amanha 10h, ligar pro mecanico"
+    Exemplo de saída: ["Comprar leite", "CAL: Dentista amanhã 10h", "Ligar para o mecânico"]
+    
+    Entrada atual: 
     """
     
     completion = client.chat.completions.create(

@@ -338,15 +338,37 @@ export default function Dashboard() {
       setLoadingAttachments(false);
     };
 
+    const isCalendar = item.text?.startsWith("CAL:") || item.subject?.startsWith("CAL:");
+
     return (
-      <div className="fecd-card compact-clarify-card" style={{ position: 'relative' }}>
+      <div className="fecd-card compact-clarify-card" style={{
+        position: 'relative',
+        borderLeft: isCalendar ? '4px solid #2196f3' : '1px solid var(--m3-surface-variant)',
+        background: isCalendar ? '#f0f7ff' : 'var(--m3-surface-1)'
+      }}>
         <div style={{ position: 'absolute', top: '8px', right: '12px', display: 'flex', gap: '6px' }}>
           <button onClick={() => handleAction('complete')} title="Concluir (2 min)" className="icon-btn" style={{ background: 'var(--m3-primary-container)', color: 'var(--m3-on-primary-container)', fontSize: '0.8rem' }}>✅</button>
           <button onClick={() => handleAction('trash')} title="Lixeira" className="icon-btn" style={{ background: '#ffebee', color: '#c62828', fontSize: '0.8rem' }}>🗑️</button>
         </div>
 
         <div style={{ paddingRight: '80px' }}>
-          <p style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--m3-on-surface)', lineHeight: 1.2 }}>{item.subject || item.text}</p>
+          {/* Identificação Visual de Calendário detetado pela IA */}
+          {(item.text?.startsWith("CAL:") || item.subject?.startsWith("CAL:")) && (
+            <div style={{ position: 'absolute', top: '8px', left: '-5px', background: '#2196f3', color: 'white', fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              ⏰ CALENDÁRIO
+            </div>
+          )}
+
+          <p style={{
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            marginBottom: '4px',
+            color: 'var(--m3-on-surface)',
+            lineHeight: 1.2,
+            paddingTop: (item.text?.startsWith("CAL:") || item.subject?.startsWith("CAL:")) ? '18px' : '0'
+          }}>
+            {item.subject || item.text}
+          </p>
           {item.body && (
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '6px' }}>
               <button
