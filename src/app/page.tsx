@@ -957,15 +957,21 @@ export default function Dashboard() {
 
               <div className="fecd-card">
                 <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🤝 Radar de Projetos</h3>
-                {data.radar.filter((p: any) => !archivedProjects.includes(p.id) && !hiddenProjects.includes(p.id)).slice(0, 4).map((p: any, i: number) => (
-                  <div key={i} style={{ marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px' }}>
-                      <span>{p.name}</span>
-                      <span style={{ fontWeight: 600 }}>{Math.round(p.progress)}%</span>
+                {data.radar
+                  .filter((p: any) => !archivedProjects.includes(p.id) && !hiddenProjects.includes(p.id))
+                  .sort((a: any, b: any) => b.progress - a.progress)
+                  .slice(0, 6) // Aumentado para 6 para maior visibilidade
+                  .map((p: any, i: number) => (
+                    <div key={i} style={{ marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px' }}>
+                        <span style={{ fontWeight: 600 }}>{p.name}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--m3-primary)' }}>{Math.round(p.progress)}%</span>
+                      </div>
+                      <div className="progress-bar-bg" style={{ height: '6px' }}>
+                        <div className="progress-bar-fill" style={{ width: `${p.progress}%`, height: '100%' }}></div>
+                      </div>
                     </div>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${p.progress}%` }}></div></div>
-                  </div>
-                ))}
+                  ))}
               </div>
 
               {Object.entries(data.contexts).map(([ctx, tasks], i) => (
