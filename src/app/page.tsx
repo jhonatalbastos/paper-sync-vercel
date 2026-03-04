@@ -264,6 +264,7 @@ export default function Dashboard() {
     const [isViewing, setIsViewing] = useState(false);
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [newProjectName, setNewProjectName] = useState("");
+    const [refCategory, setRefCategory] = useState("Geral");
 
     const fetchBuckets = async (planId: string) => {
       const token = localStorage.getItem("ms_token");
@@ -473,6 +474,77 @@ export default function Dashboard() {
                 <button className="btn-primary" onClick={handleCreateProject} disabled={loadingForm} style={{ height: '24px', padding: '0 6px', fontSize: '0.65rem' }}>💾</button>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* MATERIAL DE REFERÊNCIA / ARQUIVO */}
+        <div style={{ marginTop: '8px', borderTop: '1px dashed var(--m3-outline-variant)', paddingTop: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '0.55rem', fontWeight: 700, marginBottom: '2px', color: '#455a64', textTransform: 'uppercase' }}>📂 Referência / Arquivar em:</p>
+              <select
+                className="m3-select"
+                value={refCategory}
+                onChange={(e) => setRefCategory(e.target.value)}
+                style={{ width: '100%', height: '24px', fontSize: '0.65rem' }}
+              >
+                <option value="Geral">📂 Geral</option>
+                <option value="Financeiro">🧾 Financeiro (Boletos)</option>
+                <option value="Estudos">📖 Estudos e Leituras</option>
+                <option value="Pessoal">👤 Pessoal (Documentos)</option>
+                <option value="Trabalho">💼 Trabalho</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '4px', alignSelf: 'flex-end' }}>
+              <button
+                disabled={loadingForm}
+                title="Arquivar Anexos no OneDrive"
+                className="btn-secondary"
+                style={{ height: '24px', padding: '0 8px', fontSize: '0.6rem', background: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9' }}
+                onClick={async () => {
+                  setLoadingForm(true);
+                  try {
+                    await fetch('/api/clarify/reference', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        token: localStorage.getItem("ms_token"),
+                        item: { ...item, type, list_id: item.list_id || (type === 'tasks' ? data.contexts['Caixa de Entrada']?.[0]?.parent_id : null) },
+                        dest_type: 'onedrive',
+                        category: refCategory
+                      })
+                    });
+                    setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString() }, ...prev]);
+                    fetchClarifyData();
+                  } finally { setLoadingForm(false); }
+                }}
+              >
+                ☁️ OneDrive
+              </button>
+              <button
+                disabled={loadingForm || (type !== 'acao' && type !== 'outros' && type !== 'aguardando')}
+                title="Mover e-mail para @Referência"
+                className="btn-secondary"
+                style={{ height: '24px', padding: '0 8px', fontSize: '0.6rem', background: '#f5f5f5', color: '#424242', border: '1px solid #bdbdbd' }}
+                onClick={async () => {
+                  setLoadingForm(true);
+                  try {
+                    await fetch('/api/clarify/reference', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        token: localStorage.getItem("ms_token"),
+                        item: { ...item, type },
+                        dest_type: 'outlook',
+                        category: refCategory
+                      })
+                    });
+                    setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString() }, ...prev]);
+                    fetchClarifyData();
+                  } finally { setLoadingForm(false); }
+                }}
+              >
+                📤 Pasta
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -54,7 +54,7 @@ def get_redirect_uri(request: Request):
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 AUTH_BASE = "https://login.microsoftonline.com"
-SCOPES = ["User.Read", "offline_access", "Tasks.ReadWrite", "Calendars.Read", "Mail.Read"]
+SCOPES = ["User.Read", "offline_access", "Tasks.ReadWrite", "Calendars.Read", "Mail.Read", "Mail.ReadWrite", "Files.ReadWrite", "Notes.Create"]
 
 @app.get("/api/health")
 def health_check():
@@ -130,7 +130,35 @@ def move_outlook_email(token, message_id, folder_name):
     if f_id:
         requests.post(f"{GRAPH_BASE}/me/messages/{message_id}/move", headers=headers, json={"destinationId": f_id})
         return True
+    f_id = find_folder(f"{GRAPH_BASE}/me/mailFolders")
+    if f_id:
+        requests.post(f"{GRAPH_BASE}/me/messages/{message_id}/move", headers=headers, json={"destinationId": f_id})
+        return True
     return False
+
+def get_or_create_drive_folder(token, folder_path):
+    headers = {"Authorization": f"Bearer {token}"}
+    parts = folder_path.strip('/').split('/')
+    parent_id = "root"
+    
+    for part in parts:
+        search_res = requests.get(f"{GRAPH_BASE}/me/drive/items/{parent_id}/children", headers=headers).json().get("value", [])
+        found = next((i for i in search_res if i['name'] == part), None)
+        if found:
+            parent_id = found['id']
+        else:
+            create_payload = {"name": part, "folder": {}, "@microsoft.graph.conflictBehavior": "replace"}
+            create_res = requests.post(f"{GRAPH_BASE}/me/drive/items/{parent_id}/children", headers=headers, json=create_payload).json()
+            parent_id = create_res.get('id', parent_id)
+    return parent_id
+
+def upload_to_drive(token, file_url, filename, folder_id):
+    headers = {"Authorization": f"Bearer {token}"}
+    # Baixar conteúdo do arquivo (seja de anexo do Outlook ou To Do)
+    file_content = requests.get(file_url, headers=headers).content
+    upload_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}
+    r = requests.put(f"{GRAPH_BASE}/me/drive/items/{folder_id}:/{filename}:/content", headers=upload_headers, data=file_content)
+    return r.status_code in [200, 201]
 
 # --- ENDPOINTS ATUALIZADOS ---
 
@@ -477,6 +505,51 @@ async def upload_scan(request: Request):
         "message": f"IA ativada! Scan processado com sucesso. {len(res['inbox_notes'])} notas capturadas.",
         "data": res
     }
+
+@app.post("/api/clarify/reference")
+async def handle_reference_action(request: Request):
+    data = await request.json()
+    token = data.get("token")
+    item = data.get("item") # Detalhes (id, title, type: 'email'|'task')
+    dest_type = data.get("dest_type") # 'onedrive', 'outlook', 'onenote'
+    category = data.get("category", "Geral") # Subpasta (Financeiro, etc)
+    
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    
+    # 1. Arquivar Anexos no OneDrive se solicitado
+    if dest_type == "onedrive":
+        folder_id = get_or_create_drive_folder(token, f"GTD_Referencia/{category}")
+        
+        # Buscar anexos do item
+        if item['type'] == 'email':
+            attachments_url = f"{GRAPH_BASE}/me/messages/{item['id']}/attachments"
+        else:
+            attachments_url = f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}/attachments"
+            
+        att_res = requests.get(attachments_url, headers=headers).json().get("value", [])
+        for att in att_res:
+            if att.get('@odata.type') == '#microsoft.graph.fileAttachment':
+                # No caso de e-mail, o conteúdo pode vir em base64 ou URL
+                # Simplificando: o Graph permite baixar via /content se for anexo de task
+                if item['type'] == 'task':
+                    upload_to_drive(token, f"{attachments_url}/{att['id']}/$value", att['name'], folder_id)
+                else:
+                    # Para e-mail, o anexo vem com contentBytes
+                    import base64
+                    content = base64.b64decode(att['contentBytes'])
+                    requests.put(f"{GRAPH_BASE}/me/drive/items/{folder_id}:/{att['name']}:/content", 
+                                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}, 
+                                 data=content)
+
+    # 2. Mover para pasta de Referência no Outlook
+    if item['type'] == 'email':
+        move_outlook_email(token, item['id'], "@Referência")
+    
+    # 3. Marcar/Remover do To Do
+    if item['type'] == 'task' or (item.get('id') and item.get('list_id')):
+        requests.delete(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers)
+
+    return {"status": "success"}
 
 @app.get("/api/weekly-review/{step}")
 async def weekly_review(step: int):
