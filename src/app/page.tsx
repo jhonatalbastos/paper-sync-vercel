@@ -996,7 +996,10 @@ export default function Dashboard() {
                   <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
                   <div className="list">
                     {tasks.map((t, idx) => (
-                      <div key={idx} className="list-item" style={{ fontSize: '0.85rem', padding: '3px 0' }}>• {t}</div>
+                      <div key={idx} className="list-item" style={{ fontSize: '0.85rem', padding: '3px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>• {t.title}</span>
+                        {t.is_today && <span style={{ fontSize: '0.6rem', background: '#fff3e0', color: '#e65100', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>HOJE</span>}
+                      </div>
                     ))}
                   </div>
                 </div>
