@@ -748,29 +748,6 @@ export default function Dashboard() {
                       ))}
                     </div>
 
-                    <div className="fecd-card">
-                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>📁 Outras Tarefas do Planner</h3>
-                      {Object.entries(printSelections.all_other_planner).map(([plan, buckets]: [string, any]) => (
-                        <div key={plan} style={{ marginBottom: '16px' }}>
-                          <h4 style={{ fontSize: '0.75rem', fontWeight: 700, opacity: 0.6, marginBottom: '8px' }}>{plan}</h4>
-                          {Object.entries(buckets).map(([bucket, tasks]: [string, any]) => (
-                            <div key={bucket} style={{ paddingLeft: '8px', borderLeft: '2px solid var(--m3-surface-variant)', marginBottom: '8px' }}>
-                              <p style={{ fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>{bucket}</p>
-                              {tasks.map((t: any, idx: number) => (
-                                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
-                                  <input type="checkbox" checked={t.selected} onChange={(e) => {
-                                    const newer = { ...printSelections.all_other_planner };
-                                    newer[plan][bucket][idx].selected = e.target.checked;
-                                    setPrintSelections({ ...printSelections, all_other_planner: newer });
-                                  }} />
-                                  <span style={{ fontSize: '0.75rem', opacity: t.selected ? 1 : 0.6 }}>{t.text}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
                   </>
                 )}
               </div>
@@ -829,11 +806,11 @@ export default function Dashboard() {
                   </>
                 )}
 
-                <div className="preview-capture-box">
+                <div className="preview-capture-box" style={{ height: '110px' }}>
                   <div className="preview-capture-title">📥 Captura Rápida</div>
-                  <div style={{ flex: 1, borderBottom: '0.5px solid #e2e8f0', marginTop: '10px' }}></div>
-                  <div style={{ flex: 1, borderBottom: '0.5px solid #e2e8f0' }}></div>
-                  <div style={{ flex: 1, borderBottom: '0.5px solid #e2e8f0' }}></div>
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} style={{ flex: 1, borderBottom: '0.5px solid #e2e8f0', marginTop: i === 0 ? '5px' : '0' }}></div>
+                  ))}
                 </div>
               </div>
             </div>

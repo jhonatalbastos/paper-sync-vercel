@@ -29,21 +29,17 @@ def draw_header(p, data, width, height):
     p.setStrokeColor(colors.HexColor("#cbd5e1"))
     p.line(1.5*cm, height - 4.5*cm, width - 1.5*cm, height - 4.5*cm)
 
-def draw_capture_box(p, width):
-    """Desenha a caixa de captura rápida no rodapé da PRIMEIRA página."""
-    inbox_y_start = 1.2*cm
-    inbox_height = 4.2*cm
-    p.setStrokeColor(colors.HexColor("#cbd5e1"))
-    p.setDash(1, 2)
-    for i in range(1, 7):
-        line_y = inbox_y_start + (i * 0.6*cm)
-        p.line(1.5*cm, line_y, width - 1.5*cm, line_y)
-    p.setDash()
-    p.setStrokeColor(colors.HexColor("#94a3b8"))
     p.rect(1.5*cm, inbox_y_start, width - 3*cm, inbox_height, stroke=1, fill=0)
+    
+    # Aumentado para 10 linhas
+    for i in range(1, 11):
+        line_y = inbox_y_start + (i * 0.4*cm)
+        p.line(1.5*cm, line_y, width - 1.5*cm, line_y)
+        
+    p.setDash()
     p.setFont("Helvetica-Bold", 11)
     p.setFillColor(colors.HexColor("#475569"))
-    p.drawString(1.8*cm, inbox_y_start + inbox_height - 0.5*cm, "📥 CAPTURA RÁPIDA (Inbox / Notas)")
+    p.drawString(1.8*cm, inbox_y_start + inbox_height - 0.4*cm, "📥 CAPTURA RÁPIDA (Inbox / Notas)")
 
 def draw_wrapped_line(p, text, x, y, max_width, checkbox=True, is_overdue=False):
     """Auxiliar para desenhar texto com quebra de linha."""
@@ -182,9 +178,6 @@ def generate_gtd_page(data):
         output.write(final_buffer)
         final_buffer.seek(0)
         return final_buffer
-        
-        final_buffer = BytesIO()
-        output.write(final_buffer)
-        final_buffer.seek(0)
-        return final_buffer
+    
+    temp_buffer.seek(0)
     return temp_buffer
