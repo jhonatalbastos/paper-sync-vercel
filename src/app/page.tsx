@@ -170,8 +170,11 @@ export default function Dashboard() {
 
   const ClarifyForm = ({ item, type }: { item: any; type: string }) => {
     const [destination, setDestination] = useState<any>({});
-    const [loading, setLoading] = useState(false);
+    const [loadingForm, setLoadingForm] = useState(false);
     const [buckets, setBuckets] = useState<any[]>([]);
+    const [isViewing, setIsViewing] = useState(false);
+    const [isCreatingProject, setIsCreatingProject] = useState(false);
+    const [newProjectName, setNewProjectName] = useState("");
 
     const fetchBuckets = async (planId: string) => {
       const token = localStorage.getItem("ms_token");
@@ -180,8 +183,26 @@ export default function Dashboard() {
       setBuckets(b);
     };
 
-    const handleAction = async (actionType: 'context' | 'project') => {
-      setLoading(true);
+    const handleCreateProject = async () => {
+      setLoadingForm(true);
+      const token = localStorage.getItem("ms_token");
+      const res = await fetch("/api/projects/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, title: newProjectName || item.subject || item.text })
+      });
+      const result = await res.json();
+      if (result.status === "success") {
+        setDestination({ ...destination, plan_id: result.plan_id });
+        setIsCreatingProject(false);
+        fetchBuckets(result.plan_id);
+        fetchDashboardData(token);
+      }
+      setLoadingForm(false);
+    };
+
+    const handleAction = async (actionType: 'context' | 'project' | 'complete' | 'trash') => {
+      setLoadingForm(true);
       const token = localStorage.getItem("ms_token");
 
       const payload = {
@@ -189,9 +210,9 @@ export default function Dashboard() {
         action_type: actionType,
         item: {
           id: item.id,
-          title: item.subject || item.title || item.text,
-          list_id: item.parentFolderId, // Para To Do
-          email_id: item.id // Se for e-mail
+          title: newProjectName || item.subject || item.title || item.text,
+          list_id: item.parentFolderId,
+          email_id: item.id
         },
         destination: {
           list_id: destination.list_id,
@@ -209,77 +230,113 @@ export default function Dashboard() {
 
       if (res.ok) {
         setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString() }, ...prev]);
-        alert("Processado com sucesso!");
         fetchClarifyData();
-        const tokenToken = localStorage.getItem("ms_token");
-        fetchDashboardData(tokenToken);
+        fetchDashboardData(token);
       }
-      setLoading(false);
+      setLoadingForm(false);
     };
 
     return (
-      <div className="fecd-card" style={{ marginBottom: '16px', borderLeft: '4px solid var(--m3-primary)' }}>
-        <p style={{ fontWeight: 600, marginBottom: '12px' }}>{item.subject || item.text}</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          {/* Coluna To Do */}
-          <div style={{ background: 'var(--m3-surface-container-low)', padding: '12px', borderRadius: '12px' }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 700, marginBottom: '8px', color: 'var(--m3-primary)' }}>CONTEXTO (To Do)</p>
-            <select
-              className="m3-select"
-              onChange={(e) => setDestination({ ...destination, list_id: e.target.value })}
-              style={{ width: '100%', marginBottom: '8px' }}
-            >
-              <option value="">-- Mover para --</option>
-              {Object.keys(data.contexts).map(ctx => (
-                <option key={ctx} value={ctx}>{ctx}</option>
-              ))}
-            </select>
-            <button
-              className="btn-primary"
-              disabled={loading || !destination.list_id}
-              style={{ width: '100%', fontSize: '0.8rem' }}
-              onClick={() => handleAction('context')}
-            >
-              Confirmar Contexto
-            </button>
-          </div>
+      <div className="fecd-card" style={{ marginBottom: '12px', padding: '12px 16px', borderLeft: '3px solid var(--m3-primary)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px' }}>
+          <button onClick={() => handleAction('complete')} title="Concluir (2 min)" className="icon-btn" style={{ background: 'var(--m3-primary-container)', color: 'var(--m3-on-primary-container)', fontSize: '0.8rem' }}>✅</button>
+          <button onClick={() => handleAction('trash')} title="Lixeira" className="icon-btn" style={{ background: '#ffebee', color: '#c62828', fontSize: '0.8rem' }}>🗑️</button>
+        </div>
 
-          {/* Coluna Planner */}
-          <div style={{ background: 'var(--m3-surface-container-low)', padding: '12px', borderRadius: '12px' }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 700, marginBottom: '8px', color: 'var(--m3-secondary)' }}>PROJETO (Planner)</p>
-            <select
-              className="m3-select"
-              onChange={(e) => {
-                setDestination({ ...destination, plan_id: e.target.value });
-                fetchBuckets(e.target.value);
-              }}
-              style={{ width: '100%', marginBottom: '4px' }}
+        <div style={{ paddingRight: '100px' }}>
+          <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '2px', color: 'var(--m3-on-surface)' }}>{item.subject || item.text}</p>
+          {item.body && (
+            <button
+              onClick={() => setIsViewing(!isViewing)}
+              style={{ fontSize: '0.7rem', color: 'var(--m3-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '8px', fontWeight: 500 }}
             >
-              <option value="">-- Plano --</option>
-              {data.radar.map((p: any) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-            {buckets.length > 0 && (
+              {isViewing ? "🔼 Recolher conteúdo" : "🔽 Espiar e-mail"}
+            </button>
+          )}
+          {isViewing && item.body && (
+            <div
+              style={{ fontSize: '0.8rem', background: 'var(--m3-surface-2)', padding: '10px', borderRadius: '8px', marginBottom: '12px', maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--m3-surface-variant)' }}
+              dangerouslySetInnerHTML={{ __html: item.body.content }}
+            />
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
+          <div style={{ background: 'var(--m3-surface-2)', padding: '8px 12px', borderRadius: '10px' }}>
+            <p style={{ fontSize: '0.65rem', fontWeight: 700, marginBottom: '6px', color: 'var(--m3-primary)', textTransform: 'uppercase' }}>Contexto</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <select
                 className="m3-select"
-                onChange={(e) => setDestination({ ...destination, bucket_id: e.target.value })}
-                style={{ width: '100%', marginBottom: '8px' }}
+                onChange={(e) => setDestination({ ...destination, list_id: e.target.value })}
+                style={{ flex: 1, height: '30px', fontSize: '0.75rem' }}
               >
-                <option value="">-- Bucket --</option>
-                {buckets.map((b: any) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
+                <option value="">-- Lista --</option>
+                {Object.keys(data.contexts).map(ctx => (
+                  <option key={ctx} value={ctx}>{ctx}</option>
                 ))}
               </select>
+              <button className="btn-primary" disabled={loadingForm || !destination.list_id} style={{ height: '30px', padding: '0 10px', fontSize: '0.7rem' }} onClick={() => handleAction('context')}>Mover</button>
+            </div>
+          </div>
+
+          <div style={{ background: 'var(--m3-surface-2)', padding: '8px 12px', borderRadius: '10px' }}>
+            <p style={{ fontSize: '0.65rem', fontWeight: 700, marginBottom: '6px', color: 'var(--m3-secondary)', textTransform: 'uppercase' }}>Projeto</p>
+            {!isCreatingProject ? (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <select
+                  className="m3-select"
+                  value={destination.plan_id || ""}
+                  onChange={(e) => {
+                    if (e.target.value === "NEW") setIsCreatingProject(true);
+                    else {
+                      setDestination({ ...destination, plan_id: e.target.value });
+                      fetchBuckets(e.target.value);
+                    }
+                  }}
+                  style={{ flex: 1, minWidth: '100px', height: '30px', fontSize: '0.75rem' }}
+                >
+                  <option value="">-- Plano --</option>
+                  <option value="NEW" style={{ fontWeight: 600, color: 'var(--m3-primary)' }}>+ Novo Projeto</option>
+                  {data.radar.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                {buckets.length > 0 && (
+                  <select
+                    className="m3-select"
+                    onChange={(e) => setDestination({ ...destination, bucket_id: e.target.value })}
+                    style={{ flex: 1, minWidth: '80px', height: '30px', fontSize: '0.75rem' }}
+                  >
+                    <option value="">-- Bucket --</option>
+                    {buckets.map((b: any) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  className="btn-primary"
+                  disabled={loadingForm || !destination.plan_id || !destination.bucket_id}
+                  style={{ height: '30px', padding: '0 10px', fontSize: '0.7rem', background: 'var(--m3-secondary-container)', color: 'var(--m3-on-secondary-container)' }}
+                  onClick={() => handleAction('project')}
+                >
+                  🚀 Enviar
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  type="text"
+                  placeholder="Nome do Novo Projeto"
+                  className="m3-input"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  style={{ flex: 1, height: '30px', fontSize: '0.75rem' }}
+                  autoFocus
+                />
+                <button className="btn-primary" onClick={handleCreateProject} disabled={loadingForm} style={{ height: '30px', padding: '0 10px', fontSize: '0.7rem' }}>💾</button>
+                <button className="btn-primary" onClick={() => setIsCreatingProject(false)} style={{ background: 'none', color: 'var(--m3-outline)', border: '1px solid var(--m3-outline)', height: '30px', padding: '0 10px', fontSize: '0.7rem' }}>✖</button>
+              </div>
             )}
-            <button
-              className="btn-primary"
-              disabled={loading || !destination.plan_id || !destination.bucket_id}
-              style={{ width: '100%', fontSize: '0.8rem', background: 'var(--m3-secondary-container)', color: 'var(--m3-on-secondary-container)' }}
-              onClick={() => handleAction('project')}
-            >
-              Mover p/ Projeto
-            </button>
           </div>
         </div>
       </div>
@@ -299,20 +356,20 @@ export default function Dashboard() {
 
           return (
             <div style={{ marginBottom: '32px' }}>
-              <h3 className="card-title" style={{ justifyContent: 'flex-start', gap: '12px' }}>
+              <h3 className="card-title" style={{ justifyContent: 'flex-start', gap: '12px', fontSize: '1rem' }}>
                 {icon} {title} ({items.length})
               </h3>
-              <div className="dashboard-grid"> {/* Agora é flex-direction: column no CSS */}
+              <div className="dashboard-grid">
                 {displayItems.map((item, i) => (
                   <ClarifyForm key={`${sectionId}-${item.id || i}`} item={item} type={sectionId} />
                 ))}
                 {items.length === 0 && (
-                  <div className="fecd-card" style={{ opacity: 0.7 }}>Nenhum item pendente nesta categoria.</div>
+                  <div className="fecd-card" style={{ opacity: 0.7, padding: '12px' }}>Nenhum item pendente nesta categoria.</div>
                 )}
                 {items.length > 5 && (
                   <button
                     className="btn-primary"
-                    style={{ background: 'var(--m3-surface-variant)', color: 'var(--m3-on-surface)', width: '200px', alignSelf: 'center', marginTop: '8px' }}
+                    style={{ background: 'var(--m3-surface-variant)', color: 'var(--m3-on-surface)', minWidth: '200px', alignSelf: 'center', marginTop: '8px' }}
                     onClick={() => toggleSection(sectionId)}
                   >
                     {isExpanded ? "🔼 Mostrar Menos" : `🔽 Ver mais ${items.length - 5} itens`}
@@ -327,33 +384,30 @@ export default function Dashboard() {
           <div className="tab-content" style={{ maxWidth: '900px', margin: '0 auto' }}>
             <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 className="page-title">🧠 Fase 2: Esclarecer</h2>
-                <p className="page-subtitle">Decida o destino de cada captura. To Do ou Planner?</p>
+                <h2 className="page-title">🧠 Esclarecer</h2>
+                <p className="page-subtitle">Decida o destino de cada captura.</p>
               </div>
               <button
                 className="btn-primary"
                 onClick={() => setShowProcessed(!showProcessed)}
                 style={{ background: showProcessed ? 'var(--m3-primary)' : 'var(--m3-surface-variant)', color: showProcessed ? 'var(--m3-on-primary)' : 'var(--m3-on-surface)' }}
               >
-                {showProcessed ? "🙈 Esconder Esclarecidos" : `👁️ Ver Esclarecidos (${processedSession.length})`}
+                {showProcessed ? "🙈 Esconder Histórico" : `👁️ Histórico (${processedSession.length})`}
               </button>
             </header>
 
             <div className="clarify-stack" style={{ display: 'flex', flexDirection: 'column' }}>
-              {/* Lista de Processados (Quarta Lista) */}
               {showProcessed && (
-                <div style={{ marginBottom: '40px', padding: '24px', background: 'var(--m3-surface-container-highest)', borderRadius: '24px', border: '2px dashed var(--m3-primary)' }}>
-                  <h3 className="card-title" style={{ color: 'var(--m3-primary)' }}>✅ Itens Esclarecidos nesta Sessão</h3>
+                <div style={{ marginBottom: '32px', padding: '16px', background: 'var(--m3-surface-2)', borderRadius: '16px', border: '2px dashed var(--m3-outline)' }}>
+                  <h3 className="card-title" style={{ color: 'var(--m3-primary)', fontSize: '0.9rem' }}>✅ Processados nesta sessão</h3>
                   <div className="dashboard-grid">
                     {processedSession.map((item, i) => (
-                      <div key={`proc-${i}`} className="fecd-card" style={{ opacity: 0.8, background: 'var(--m3-surface-container-low)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontWeight: 600 }}>{item.subject || item.text}</span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--m3-primary)' }}>Processado às {item.processedAt}</span>
-                        </div>
+                      <div key={`proc-${i}`} className="list-item" style={{ background: 'var(--m3-surface-1)', borderRadius: '8px' }}>
+                        <span style={{ fontWeight: 600, flex: 1 }}>{item.subject || item.text}</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--m3-primary)' }}>{item.processedAt}</span>
                       </div>
                     ))}
-                    {processedSession.length === 0 && <p>Nenhum item esclarecido ainda.</p>}
+                    {processedSession.length === 0 && <p style={{ fontSize: '0.8rem' }}>Nenhum item processado.</p>}
                   </div>
                 </div>
               )}
@@ -361,33 +415,31 @@ export default function Dashboard() {
               {renderSection("Capturas Digitais (@Ações)", clarifyData.emails.acao, "acao", "⚡")}
               {renderSection("Radar de Delegação (@Aguardando)", clarifyData.emails.aguardando, "aguardando", "⏳")}
               {renderSection("Demais Sinalizados", clarifyData.emails.outros, "outros", "📧")}
-              {renderSection("Capturas Analógicas (Papel)", clarifyData.paper_notes, "paper", "📝")}
+              {renderSection("Capturas Analógicas", clarifyData.paper_notes, "paper", "📝")}
             </div>
           </div>
         );
       case "Projetos":
         return (
-          <div className="tab-content text-center">
+          <div className="tab-content">
             <header className="header-row">
               <div><h2 className="page-title">🤝 Radar de Delegação</h2><p className="page-subtitle">Acompanhamento e status dos Projetos no Planner.</p></div>
               <button className="btn-primary" onClick={() => setActiveTab("Dashboard")}>+ Novo Projeto</button>
             </header>
-            <div className="dashboard-grid">
+            <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', flexDirection: 'unset' }}>
               {data.radar.map((p: any, i: number) => (
                 <div key={i} className="fecd-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <h3 className="card-title" style={{ margin: 0 }}>{p.name}</h3>
+                    <h3 className="card-title" style={{ margin: 0, fontSize: '1rem' }}>{p.name}</h3>
                     <span className="badge">{Math.round(p.progress)}%</span>
                   </div>
-                  <div className="progress-bar-bg" style={{ marginBottom: '16px' }}>
+                  <div className="progress-bar-bg" style={{ marginBottom: '12px' }}>
                     <div className="progress-bar-fill" style={{ width: `${p.progress}%` }}></div>
                   </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--m3-on-surface-variant)' }}>
-                    {p.tasks_count} tarefas totais identificadas.
-                  </p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--m3-on-surface-variant)' }}>{p.tasks_count} tarefas identificadas.</p>
                   <button
                     className="btn-primary"
-                    style={{ width: '100%', marginTop: '16px', background: 'var(--m3-surface-variant)', color: 'var(--m3-on-surface)' }}
+                    style={{ width: '100%', marginTop: '12px', background: 'var(--m3-surface-variant)', color: 'var(--m3-on-surface)' }}
                     onClick={() => window.open(`https://tasks.office.com/fecd.org.br/Home/PlanDetails/${p.id}`, '_blank')}
                   >
                     Abrir no Planner
@@ -401,11 +453,11 @@ export default function Dashboard() {
         return (
           <div className="tab-content">
             <header className="header-row">
-              <div><h2 className="page-title">🖨️ Mapa de Batalha</h2><p className="page-subtitle">Gere sua folha A4 diária com QR Code.</p></div>
+              <div><h2 className="page-title">🖨️ Mapa de Batalha</h2><p className="page-subtitle">Gere sua folha A4 diária.</p></div>
             </header>
-            <div className="fecd-card" style={{ maxWidth: '500px', margin: '0 auto' }}>
-              <h3 className="card-title">Configurar Impressão</h3>
-              <p style={{ marginBottom: '1.5rem', color: 'var(--m3-on-surface-variant)' }}>Isso consolidará sua Paisagem Rígida e Ações por Contexto.</p>
+            <div className="fecd-card" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
+              <h3 className="card-title" style={{ justifyContent: 'center' }}>Configurar Impressão</h3>
+              <p style={{ marginBottom: '1.5rem', color: 'var(--m3-on-surface-variant)', fontSize: '0.85rem' }}>Isso consolidará sua Paisagem Rígida e Ações por Contexto.</p>
               <button className="btn-primary" onClick={generatePDF} style={{ width: '100%', justifyContent: 'center' }}>
                 Gerar PDF (A4)
               </button>
@@ -415,10 +467,10 @@ export default function Dashboard() {
       default:
         return (
           <>
-            <header className="header-row">
+            <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 className="page-title">Bem-vindo, Jhonata</h2>
-                <p className="page-subtitle">Sincronizado via Microsoft Graph às {data.sync_time}.</p>
+                <h2 className="page-title" style={{ fontSize: '1.5rem' }}>Bem-vindo, Jhonata</h2>
+                <p className="page-subtitle">Sincronizado às {data.sync_time}.</p>
               </div>
               <button className="btn-primary" onClick={() => fetchDashboardData(localStorage.getItem("ms_token"))}>
                 🔄 Atualizar
@@ -426,28 +478,27 @@ export default function Dashboard() {
             </header>
 
             <div className="dashboard-grid">
-              {/* Paisagem Rígida */}
               <div className="fecd-card">
-                <h3 className="card-title">🕒 Paisagem Rígida (Hoje)</h3>
+                <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🕒 Paisagem Rígida (Hoje)</h3>
                 <div className="list">
                   {data.landscape.length > 0 ? data.landscape.map((ev, i) => (
-                    <div key={i} className="list-item">
-                      <span style={{ fontWeight: 700, color: 'var(--m3-primary)', minWidth: '60px' }}>
+                    <div key={i} className="list-item" style={{ padding: '4px 0' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--m3-primary)', minWidth: '50px', fontSize: '0.75rem' }}>
                         {new Date(ev.start.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      <span>{ev.subject}</span>
+                      <span style={{ fontSize: '0.85rem' }}>{ev.subject}</span>
                     </div>
-                  )) : <p>Sem compromissos fixos para hoje.</p>}
+                  )) : <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Sem compromissos hoje.</p>}
                 </div>
               </div>
 
               <div className="fecd-card">
-                <h3 className="card-title">🤝 Radar de Projetos</h3>
-                {data.radar.slice(0, 3).map((p: any, i: number) => (
-                  <div key={i} style={{ marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
+                <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🤝 Radar de Projetos</h3>
+                {data.radar.slice(0, 4).map((p: any, i: number) => (
+                  <div key={i} style={{ marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px' }}>
                       <span>{p.name}</span>
-                      <span>{Math.round(p.progress)}%</span>
+                      <span style={{ fontWeight: 600 }}>{Math.round(p.progress)}%</span>
                     </div>
                     <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${p.progress}%` }}></div></div>
                   </div>
@@ -456,12 +507,10 @@ export default function Dashboard() {
 
               {Object.entries(data.contexts).map(([ctx, tasks]: [string, any], i) => (
                 <div key={i} className="fecd-card">
-                  <h3 className="card-title">🚀 {ctx}</h3>
+                  <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
                   <div className="list">
                     {tasks.map((t: string, idx: number) => (
-                      <div key={idx} className="list-item">
-                        <span>{t}</span>
-                      </div>
+                      <div key={idx} className="list-item" style={{ fontSize: '0.85rem', padding: '3px 0' }}>• {t}</div>
                     ))}
                   </div>
                 </div>
@@ -478,8 +527,8 @@ export default function Dashboard() {
         <div className="logo-container">
           <div className="logo-box">F</div>
           <div>
-            <h1 style={{ fontWeight: 700, fontSize: '1.25rem', lineHeight: 1 }}>Ecosystem</h1>
-            <p style={{ fontSize: '0.75rem', opacity: 0.7 }}>PaperSync 365</p>
+            <h1 style={{ fontWeight: 700, fontSize: '1.1rem', lineHeight: 1 }}>Ecosystem</h1>
+            <p style={{ fontSize: '0.65rem', opacity: 0.7 }}>PaperSync 365</p>
           </div>
         </div>
 
@@ -487,23 +536,23 @@ export default function Dashboard() {
           {[
             { id: "Dashboard", label: "Dashboard", icon: "📊" },
             { id: "Esclarecer", label: "Esclarecer", icon: "🧠" },
-            { id: "Projetos", label: "Projetos", icon: "🤝" },
-            { id: "Impressao", label: "Impressão", icon: "🖨️" },
-            { id: "Upload", label: "Escaneamento", icon: "📸" }
+            { id: "Projetos", label: "Radar", icon: "🤝" },
+            { id: "Impressao", label: "Mapa", icon: "🖨️" },
+            { id: "Upload", label: "Scan", icon: "📸" }
           ].map((item) => (
             <div
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
             >
-              <span>{item.icon}</span>
-              <p>{item.label}</p>
+              <span style={{ fontSize: '1rem' }}>{item.icon}</span>
+              <p style={{ margin: 0 }}>{item.label}</p>
             </div>
           ))}
 
           <div className="nav-item" onClick={logout} style={{ marginTop: 'auto' }}>
-            <span>🚪</span>
-            <p>Sair</p>
+            <span style={{ fontSize: '1rem' }}>🚪</span>
+            <p style={{ margin: 0 }}>Sair</p>
           </div>
         </nav>
       </aside>
@@ -511,8 +560,8 @@ export default function Dashboard() {
       <main className="main-content">
         {renderContent()}
 
-        <footer style={{ marginTop: '4rem', opacity: 0.5, textAlign: 'center', paddingBottom: '2rem' }}>
-          <p style={{ fontSize: '0.75rem' }}>FECD PREMIUM GTD SYSTEM &copy; 2026</p>
+        <footer style={{ marginTop: '3rem', opacity: 0.4, textAlign: 'center', paddingBottom: '1.5rem' }}>
+          <p style={{ fontSize: '0.65rem' }}>FECD PREMIUM GTD SYSTEM &copy; 2026</p>
         </footer>
       </main>
     </div>

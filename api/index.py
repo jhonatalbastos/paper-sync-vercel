@@ -189,7 +189,7 @@ def get_clarify_data(token: str):
         params={
             "$filter": "flag/flagStatus eq 'flagged'", 
             "$top": 80, 
-            "$select": "subject,from,receivedDateTime,id,parentFolderId"
+            "$select": "subject,from,receivedDateTime,id,parentFolderId,body"
         }
     )
     all_emails = mail_res.json().get("value", [])
@@ -306,6 +306,20 @@ async def handle_clarify_action(request: Request):
                 planner_url = f"https://tasks.office.com/fecd.org.br/Home/Task/{p_task['id']}"
                 requests.post(f"{GRAPH_BASE}/me/todo/lists/{target_id}/tasks/{new_t['id']}/linkedResources", headers=headers, json={"webUrl": planner_url, "displayName": "Ver no Planner"})
                 requests.delete(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers)
+
+    elif action_type == "complete":
+        # Marcar como concluído no To Do e mover e-mail para Concluídos
+        if item.get('id') and item.get('list_id'):
+            requests.patch(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers, json={"status": "completed"})
+        if item.get('email_id'):
+            move_outlook_email(token, item['email_id'], "@Concluídos")
+
+    elif action_type == "trash":
+        # Deletar no To Do e mover e-mail para Itens Deletados
+        if item.get('id') and item.get('list_id'):
+            requests.delete(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers)
+        if item.get('email_id'):
+            move_outlook_email(token, item['email_id'], "Deleted Items")
 
     return {"status": "success"}
 
