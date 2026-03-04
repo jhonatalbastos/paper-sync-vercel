@@ -43,6 +43,30 @@ export default function Dashboard() {
   const [hiddenProjects, setHiddenProjects] = useState<string[]>([]);
   const [isManagingVisibility, setIsManagingVisibility] = useState(false);
   const [printSelections, setPrintSelections] = useState<any>(null);
+  const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({
+    "Flagged Emails": true,
+    "E-mails Sinalizados": true
+  });
+
+  const contextIcons: { [key: string]: string } = {
+    "Escritório": "🏢",
+    "Computador": "💻",
+    "Telefone": "📞",
+    "Na Rua": "🚗",
+    "Assuntos a Tratar": "👥",
+    "In Tray": "📥",
+    "Inbox": "📥",
+    "Flagged Emails": "🚩",
+    "E-mails Sinalizados": "🚩",
+    "Tarefas": "📝",
+    "Calendário": "🗓️",
+    "Radar": "🤝",
+    "Projetos": "🚀"
+  };
+
+  const contextNames: { [key: string]: string } = {
+    "Flagged Emails": "E-mails Sinalizados"
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("archived_projects");
@@ -58,6 +82,19 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem("hidden_projects", JSON.stringify(hiddenProjects));
   }, [hiddenProjects]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("collapsed_sections");
+    if (saved) setCollapsedSections(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("collapsed_sections", JSON.stringify(collapsedSections));
+  }, [collapsedSections]);
+
+  const toggleCollapse = (id: string) => {
+    setCollapsedSections(prev => ({ ...prev, [id]: !prev[id] }));
+  };
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
@@ -940,53 +977,112 @@ export default function Dashboard() {
               </button>
             </header>
 
-            <div className="dashboard-grid">
+            <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {/* CALENDÁRIO */}
               <div className="fecd-card">
-                <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🕒 Paisagem Rígida (Hoje)</h3>
-                <div className="list">
-                  {data.landscape.length > 0 ? data.landscape.map((ev, i) => (
-                    <div key={i} className="list-item" style={{ padding: '4px 0' }}>
-                      <span style={{ fontWeight: 700, color: 'var(--m3-primary)', minWidth: '50px', fontSize: '0.75rem' }}>
-                        {new Date(ev.start.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span style={{ fontSize: '0.85rem' }}>{ev.subject}</span>
-                    </div>
-                  )) : <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Sem compromissos hoje.</p>}
-                </div>
-              </div>
-
-              <div className="fecd-card">
-                <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🤝 Radar de Projetos</h3>
-                {data.radar
-                  .filter((p: any) => !archivedProjects.includes(p.id) && !hiddenProjects.includes(p.id))
-                  .sort((a: any, b: any) => b.progress - a.progress)
-                  .slice(0, 6) // Aumentado para 6 para maior visibilidade
-                  .map((p: any, i: number) => (
-                    <div key={i} style={{ marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px' }}>
-                        <span style={{ fontWeight: 600 }}>{p.name}</span>
-                        <span style={{ fontWeight: 700, color: 'var(--m3-primary)' }}>{Math.round(p.progress)}%</span>
-                      </div>
-                      <div className="progress-bar-bg" style={{ height: '6px' }}>
-                        <div className="progress-bar-fill" style={{ width: `${p.progress}%`, height: '100%' }}></div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-
-              {Object.entries(data.contexts).map(([ctx, tasks], i) => (
-                <div key={i} className="fecd-card">
-                  <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
+                <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse("calendar")}>
+                  <span>🗓️ Calendário (Hoje)</span>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{collapsedSections["calendar"] ? "▶️" : "▼"}</span>
+                </h3>
+                {!collapsedSections["calendar"] && (
                   <div className="list">
-                    {tasks.length > 0 ? tasks.map((t, idx) => (
-                      <div key={idx} className="list-item" style={{ fontSize: '0.85rem', padding: '3px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>• {t.title}</span>
-                        {t.is_today && <span style={{ fontSize: '0.6rem', background: '#fff3e0', color: '#e65100', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>HOJE</span>}
+                    {data.landscape.length > 0 ? data.landscape.map((ev, i) => (
+                      <div key={i} className="list-item" style={{ padding: '4px 0' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--m3-primary)', minWidth: '50px', fontSize: '0.75rem' }}>
+                          {new Date(ev.start.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span style={{ fontSize: '0.85rem' }}>{ev.subject}</span>
                       </div>
-                    )) : <p style={{ fontSize: '0.8rem', opacity: 0.5, fontStyle: 'italic' }}>✅ Tudo limpo por aqui!</p>}
+                    )) : <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Sem compromissos hoje.</p>}
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
+
+              {/* RADAR DE PROJETOS */}
+              <div className="fecd-card">
+                <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse("radar")}>
+                  <span>🤝 Radar de Projetos</span>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{collapsedSections["radar"] ? "▶️" : "▼"}</span>
+                </h3>
+                {!collapsedSections["radar"] && (
+                  <div className="list" style={{ marginTop: '8px' }}>
+                    {data.radar
+                      .filter((p: any) => !archivedProjects.includes(p.id) && !hiddenProjects.includes(p.id))
+                      .sort((a: any, b: any) => b.progress - a.progress)
+                      .slice(0, 6)
+                      .map((p: any, i: number) => (
+                        <div key={i} style={{ marginBottom: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 600 }}>{p.name}</span>
+                            <span style={{ fontWeight: 700, color: 'var(--m3-primary)' }}>{Math.round(p.progress)}%</span>
+                          </div>
+                          <div className="progress-bar-bg" style={{ height: '6px' }}>
+                            <div className="progress-bar-fill" style={{ width: `${p.progress}%`, height: '100%' }}></div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* TAREFAS DE PROJETOS (Ações e Delegação) */}
+              <div className="fecd-card">
+                <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse("project_tasks")}>
+                  <span>🚀 Ações e Delegação (Projetos)</span>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{collapsedSections["project_tasks"] ? "▶️" : "▼"}</span>
+                </h3>
+                {!collapsedSections["project_tasks"] && (
+                  <div className="list">
+                    {[
+                      ...data.planner_paper.projects.map(t => ({ ...t, type: 'next' })),
+                      ...data.planner_paper.waiting.map(t => ({ ...t, type: 'delegated' }))
+                    ].map((t, idx) => (
+                      <div key={idx} className="list-item" style={{ fontSize: '0.82rem', padding: '6px 0', borderBottom: '1px solid var(--m3-surface-2)', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <span style={{ color: t.type === 'delegated' ? '#d32f2f' : 'var(--m3-primary)', fontWeight: 900 }}>
+                              {t.type === 'delegated' ? '@' : '•'}
+                            </span>
+                            <span style={{ flex: 1 }}>{t.task}</span>
+                          </div>
+                          <span style={{ fontSize: '0.65rem', opacity: 0.5, marginLeft: '14px', marginTop: '2px', fontStyle: 'italic' }}>
+                            📁 {t.plan}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {(data.planner_paper.projects.length + data.planner_paper.waiting.length) === 0 && (
+                      <p style={{ fontSize: '0.8rem', opacity: 0.5, padding: '10px 0' }}>Nenhuma ação pendente nos projetos ativos.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* CONTEXTOS DINÂMICOS DO TO DO */}
+              {Object.entries(data.contexts).map(([ctx, tasks], i) => {
+                const displayName = contextNames[ctx] || ctx;
+                const icon = contextIcons[displayName] || contextIcons[ctx] || "📝";
+                const isCollapsed = collapsedSections[ctx] || collapsedSections[displayName];
+
+                return (
+                  <div key={i} className="fecd-card">
+                    <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse(ctx)}>
+                      <span>{icon} {displayName}</span>
+                      <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{isCollapsed ? "▶️" : "▼"}</span>
+                    </h3>
+                    {!isCollapsed && (
+                      <div className="list">
+                        {tasks.length > 0 ? tasks.map((t, idx) => (
+                          <div key={idx} className="list-item" style={{ fontSize: '0.85rem', padding: '3px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>• {t.title}</span>
+                            {t.is_today && <span style={{ fontSize: '0.6rem', border: '1px solid #ffccbc', color: '#e64a19', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>HOJE</span>}
+                          </div>
+                        )) : <p style={{ fontSize: '0.8rem', opacity: 0.5, fontStyle: 'italic' }}>✅ Tudo limpo por aqui!</p>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </>
         );
