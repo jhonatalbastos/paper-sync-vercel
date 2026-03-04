@@ -192,16 +192,43 @@ def get_dashboard_data(token: str):
     today_dt = datetime.now()
     today_str = today_dt.strftime("%Y-%m-%d")
     for lst in todo_lists:
-        name = lst.get("displayName")
-        # Buscamos até 100 tarefas para ter certeza que pegamos tudo
-        tasks = requests.get(f"{GRAPH_BASE}/me/todo/lists/{lst['id']}/tasks", headers=headers, params={"$filter": "status ne 'completed'", "$top": 100}).json().get("value", [])
+        raw_name = lst.get("displayName")
+        # Padronização GTD: Renomear a lista padrão para "Caixa de Entrada"
+        name = "Caixa de Entrada" if raw_name.lower() in ["tasks", "tarefas", "in tray", "inbox"] else raw_name
         
-        if tasks: # Só adicionamos a lista se ela tiver tarefas pendentes
+        # Buscamos subtarefas (checklistItems) e o corpo da nota (body)
+        tasks_res = requests.get(
+            f"{GRAPH_BASE}/me/todo/lists/{lst['id']}/tasks", 
+            headers=headers, 
+            params={
+                "$filter": "status ne 'completed'", 
+                "$top": 100,
+                "$expand": "checklistItems"
+            }
+        ).json()
+        tasks = tasks_res.get("value", [])
+        
+        if tasks: 
             context_data[name] = []
             for t in tasks:
                 due = t.get("dueDateTime", {}).get("dateTime", "")
                 is_today = due.split('T')[0] <= today_str if due else False
-                context_data[name].append({"title": t.get("title"), "is_today": is_today})
+                
+                # Coletar subtarefas
+                subtasks = []
+                for st in t.get("checklistItems", []):
+                    if st.get("status") != "completed":
+                        subtasks.append({"id": st['id'], "title": st['displayName']})
+
+                context_data[name].append({
+                    "id": t['id'],
+                    "title": t.get("title"), 
+                    "is_today": is_today,
+                    "has_notes": bool(t.get("body", {}).get("content")),
+                    "notes": t.get("body", {}).get("content", ""),
+                    "has_attachments": t.get("hasAttachments", False),
+                    "subtasks": subtasks
+                })
 
     return {
         "landscape": cal_res.json().get("value", []) if cal_res.status_code == 200 else [],
@@ -256,10 +283,46 @@ def get_clarify_data(token: str):
         else:
             categorized["outros"].append(mail)
     
+    # 4. Buscar Tarefas da lista "Tasks" ou "In Tray" (Caixa de Entrada)
+    tasks_list = []
+    # Usamos o mesmo método de busca de listas para achar a padrão
+    lists_res = requests.get(f"{GRAPH_BASE}/me/todo/lists", headers=headers).json().get("value", [])
+    inbox_list = next((l for l in lists_res if l['displayName'].lower() in ["tasks", "tarefas", "in tray", "caixa de entrada", "inbox"]), lists_res[0] if lists_res else None)
+    
+    if inbox_list:
+        tasks_res = requests.get(
+            f"{GRAPH_BASE}/me/todo/lists/{inbox_list['id']}/tasks", 
+            headers=headers, 
+            params={"$filter": "status ne 'completed'", "$top": 50}
+        ).json().get("value", [])
+        for t in tasks_res:
+            tasks_list.append({
+                "id": t['id'],
+                "list_id": inbox_list['id'],
+                "text": t['title'],
+                "is_task": True
+            })
+
     return {
         "emails": categorized,
-        "paper_notes": get_unprocessed_inbox_notes()
+        "paper_notes": get_unprocessed_inbox_notes(),
+        "inbox_tasks": tasks_list
     }
+
+@app.post("/api/todo/quick-add")
+async def quick_add_task(request: Request):
+    data = await request.json()
+    token = data.get("token")
+    text = data.get("text")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    
+    lists_res = requests.get(f"{GRAPH_BASE}/me/todo/lists", headers=headers).json().get("value", [])
+    inbox_list = next((l for l in lists_res if l['displayName'].lower() in ["tasks", "tarefas", "in tray", "caixa de entrada", "inbox"]), lists_res[0] if lists_res else None)
+    
+    if inbox_list:
+        requests.post(f"{GRAPH_BASE}/me/todo/lists/{inbox_list['id']}/tasks", headers=headers, json={"title": text})
+        return {"status": "success"}
+    return {"status": "error", "message": "Lista de entrada não encontrada"}
 
 @app.post("/api/clarify/transform")
 async def transform_email_to_task(request: Request):
@@ -318,43 +381,47 @@ async def handle_clarify_action(request: Request):
     
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     
+    is_email = item.get('type') == 'email'
+    item_id = item.get('id')
+    list_id = item.get('list_id')
+
     if action_type == "context":
         # Mover para lista de To Do
-        move_todo_task(token, item['list_id'], item['id'], dest['list_id'])
-        if item.get('email_id'):
-            move_outlook_email(token, item['email_id'], "@Ações")
+        if list_id and item_id:
+            move_todo_task(token, list_id, item_id, dest['list_id'])
+        if is_email:
+            move_outlook_email(token, item_id, "@Ações")
             
     elif action_type == "project":
-        # Criar no Planner + Mover e-mail
+        # Criar no Planner + Deletar do To Do / Mover e-mail
         payload = {"planId": dest['plan_id'], "bucketId": dest['bucket_id'], "title": item['title']}
         p_task = requests.post(f"{GRAPH_BASE}/planner/tasks", headers=headers, json=payload).json()
         
         if 'id' in p_task:
-            b_name = dest.get('bucket_name', '').lower()
-            folder = "@Aguardando Resposta" if "delegado" in b_name else "@Ações"
-            if item.get('email_id'): move_outlook_email(token, item['email_id'], folder)
-            
-            # Registrar no To Do para marcar como processado
-            if item.get('id') and item.get('list_id'):
-                requests.delete(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers)
+            if list_id and item_id:
+                requests.delete(f"{GRAPH_BASE}/me/todo/lists/{list_id}/tasks/{item_id}", headers=headers)
+            if is_email:
+                b_name = dest.get('bucket_name', '').lower()
+                folder = "@Aguardando Resposta" if "delegado" in b_name else "@Ações"
+                move_outlook_email(token, item_id, folder)
 
     elif action_type == "complete":
-        # Marcar como concluído no To Do, completar flag no Outlook e mover para Arquivo Morto
-        if item.get('id') and item.get('list_id'):
-            requests.patch(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers, json={"status": "completed"})
-        if item.get('email_id'):
+        # Marcar como concluído
+        if list_id and item_id:
+            requests.patch(f"{GRAPH_BASE}/me/todo/lists/{list_id}/tasks/{item_id}", headers=headers, json={"status": "completed"})
+        if is_email:
             # Marcar flag como completa
-            patch_url = f"{GRAPH_BASE}/me/messages/{item['email_id']}"
+            patch_url = f"{GRAPH_BASE}/me/messages/{item_id}"
             requests.patch(patch_url, headers=headers, json={"flag": {"flagStatus": "complete"}})
             # Mover para Arquivo Morto
-            move_outlook_email(token, item['email_id'], "Arquivo Morto")
+            move_outlook_email(token, item_id, "Arquivo Morto")
 
     elif action_type == "trash":
-        # Deletar no To Do e mover e-mail para Itens Deletados
-        if item.get('id') and item.get('list_id'):
-            requests.delete(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers)
-        if item.get('email_id'):
-            move_outlook_email(token, item['email_id'], "Deleted Items")
+        # Deletar
+        if list_id and item_id:
+            requests.delete(f"{GRAPH_BASE}/me/todo/lists/{list_id}/tasks/{item_id}", headers=headers)
+        if is_email:
+            move_outlook_email(token, item_id, "Deleted Items")
 
     return {"status": "success"}
 

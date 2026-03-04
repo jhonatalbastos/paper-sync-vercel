@@ -21,6 +21,7 @@ export default function Dashboard() {
   interface ClarifyData {
     emails: { acao: any[]; aguardando: any[]; outros: any[] };
     paper_notes: any[];
+    inbox_tasks: any[];
   }
 
   const [data, setData] = useState<GTDData>({
@@ -33,8 +34,10 @@ export default function Dashboard() {
 
   const [clarifyData, setClarifyData] = useState<ClarifyData>({
     emails: { acao: [], aguardando: [], outros: [] },
-    paper_notes: []
+    paper_notes: [],
+    inbox_tasks: []
   });
+  const [quickAddTaskText, setQuickAddTaskText] = useState("");
 
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [processedSession, setProcessedSession] = useState<any[]>([]);
@@ -61,13 +64,18 @@ export default function Dashboard() {
     "Flagged Emails": "🚩",
     "E-mails Sinalizados": "🚩",
     "Tarefas": "📝",
+    "Caixa de Entrada": "📥",
+    "Tasks": "📥",
     "Calendário": "🗓️",
     "Radar": "🤝",
     "Projetos": "🚀"
   };
 
   const contextNames: { [key: string]: string } = {
-    "Flagged Emails": "E-mails Sinalizados"
+    "Flagged Emails": "E-mails Sinalizados",
+    "Tarefas": "Caixa de Entrada",
+    "Tasks": "Caixa de Entrada",
+    "Inbox": "Caixa de Entrada"
   };
 
   useEffect(() => {
@@ -291,8 +299,8 @@ export default function Dashboard() {
         item: {
           id: item.id,
           title: newProjectName || item.subject || item.title || item.text,
-          list_id: item.parentFolderId,
-          email_id: item.id
+          list_id: item.list_id || item.parentFolderId,
+          type: item.parentFolderId ? 'email' : 'task'
         },
         destination: {
           list_id: destination.list_id,
@@ -344,38 +352,39 @@ export default function Dashboard() {
       <div className="fecd-card compact-clarify-card" style={{
         position: 'relative',
         borderLeft: isCalendar ? '4px solid #2196f3' : '1px solid var(--m3-surface-variant)',
-        background: isCalendar ? '#f0f7ff' : 'var(--m3-surface-1)'
+        background: isCalendar ? '#f0f7ff' : 'var(--m3-surface-1)',
+        padding: '8px 12px'
       }}>
-        <div style={{ position: 'absolute', top: '8px', right: '12px', display: 'flex', gap: '6px' }}>
-          <button onClick={() => handleAction('complete')} title="Concluir (2 min)" className="icon-btn" style={{ background: 'var(--m3-primary-container)', color: 'var(--m3-on-primary-container)', fontSize: '0.8rem' }}>✅</button>
-          <button onClick={() => handleAction('trash')} title="Lixeira" className="icon-btn" style={{ background: '#ffebee', color: '#c62828', fontSize: '0.8rem' }}>🗑️</button>
+        <div style={{ position: 'absolute', top: '6px', right: '10px', display: 'flex', gap: '4px' }}>
+          <button onClick={() => handleAction('complete')} title="Concluir (2 min)" className="icon-btn" style={{ background: 'var(--m3-primary-container)', color: 'var(--m3-on-primary-container)', fontSize: '0.7rem', width: '22px', height: '22px' }}>✅</button>
+          <button onClick={() => handleAction('trash')} title="Lixeira" className="icon-btn" style={{ background: '#ffebee', color: '#c62828', fontSize: '0.7rem', width: '22px', height: '22px' }}>🗑️</button>
         </div>
 
-        <div style={{ paddingRight: '80px' }}>
+        <div style={{ paddingRight: '60px' }}>
           {/* Identificação Visual de Calendário detetado pela IA */}
-          {(item.text?.startsWith("CAL:") || item.subject?.startsWith("CAL:")) && (
-            <div style={{ position: 'absolute', top: '8px', left: '-5px', background: '#2196f3', color: 'white', fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              ⏰ CALENDÁRIO
+          {isCalendar && (
+            <div style={{ position: 'absolute', top: '6px', left: '-5px', background: '#2196f3', color: 'white', fontSize: '0.55rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 900, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              ⏰ CAL
             </div>
           )}
 
           <p style={{
             fontWeight: 600,
-            fontSize: '0.85rem',
+            fontSize: '0.8rem',
             marginBottom: '4px',
             color: 'var(--m3-on-surface)',
-            lineHeight: 1.2,
-            paddingTop: (item.text?.startsWith("CAL:") || item.subject?.startsWith("CAL:")) ? '18px' : '0'
+            lineHeight: 1.1,
+            paddingTop: isCalendar ? '14px' : '0'
           }}>
             {item.subject || item.text}
           </p>
           {item.body && (
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '4px' }}>
               <button
                 onClick={() => setIsViewing(!isViewing)}
-                style={{ fontSize: '0.65rem', color: 'var(--m3-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                style={{ fontSize: '0.6rem', color: 'var(--m3-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
               >
-                {isViewing ? "🔼 Recolher conteúdo" : "🔽 Espiar e-mail"}
+                {isViewing ? "🔼 Recolher" : "🔽 Espiar"}
               </button>
 
               {item.webLink && (
@@ -383,68 +392,45 @@ export default function Dashboard() {
                   href={item.webLink}
                   target="_blank"
                   rel="noreferrer"
-                  style={{ fontSize: '0.65rem', color: 'var(--m3-secondary)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}
+                  style={{ fontSize: '0.6rem', color: 'var(--m3-secondary)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}
                 >
-                  🔗 Ver no Outlook
+                  🔗 Outlook
                 </a>
               )}
-
-              {item.hasAttachments && (
-                <button
-                  onClick={fetchAttachments}
-                  style={{ fontSize: '0.65rem', color: '#af52bf', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
-                >
-                  {loadingAttachments ? "⌛ Carregando..." : "📎 Anexos"}
-                </button>
-              )}
-            </div>
-          )}
-
-          {showAttachments && attachments.length > 0 && (
-            <div style={{ background: 'var(--m3-primary-container)', padding: '6px 12px', borderRadius: '8px', marginBottom: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {attachments.map((att: any) => (
-                <a
-                  key={att.id}
-                  href={`data:${att.contentType};base64,${att.contentBytes}`}
-                  download={att.name}
-                  style={{ fontSize: '0.7rem', color: 'var(--m3-on-primary-container)', textDecoration: 'none', background: 'white', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--m3-primary)' }}
-                >
-                  📥 {att.name}
-                </a>
-              ))}
             </div>
           )}
 
           {isViewing && item.body && (
             <div
               className="email-preview-container"
+              style={{ fontSize: '0.75rem', maxHeight: '150px', overflowY: 'auto', marginBottom: '8px' }}
               dangerouslySetInnerHTML={{ __html: item.body.content }}
             />
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
-          <div style={{ background: 'var(--m3-surface-2)', padding: '8px 12px', borderRadius: '10px' }}>
-            <p style={{ fontSize: '0.65rem', fontWeight: 700, marginBottom: '6px', color: 'var(--m3-primary)', textTransform: 'uppercase' }}>Contexto</p>
-            <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div style={{ background: 'var(--m3-surface-2)', padding: '4px 8px', borderRadius: '8px' }}>
+            <p style={{ fontSize: '0.55rem', fontWeight: 700, marginBottom: '2px', color: 'var(--m3-primary)', textTransform: 'uppercase', opacity: 0.8 }}>Contexto</p>
+            <div style={{ display: 'flex', gap: '4px' }}>
               <select
                 className="m3-select"
                 onChange={(e) => setDestination({ ...destination, list_id: e.target.value })}
-                style={{ flex: 1, height: '30px', fontSize: '0.75rem' }}
+                style={{ flex: 1, height: '24px', fontSize: '0.7rem', padding: '0 4px' }}
               >
-                <option value="">-- Lista --</option>
+                <option value="">--</option>
                 {Object.keys(data.contexts).map(ctx => (
                   <option key={ctx} value={ctx}>{ctx}</option>
                 ))}
               </select>
-              <button className="btn-primary" disabled={loadingForm || !destination.list_id} style={{ height: '30px', padding: '0 10px', fontSize: '0.7rem' }} onClick={() => handleAction('context')}>Mover</button>
+              <button className="btn-primary" disabled={loadingForm || !destination.list_id} style={{ height: '24px', padding: '0 6px', fontSize: '0.65rem' }} onClick={() => handleAction('context')}>Ir</button>
             </div>
           </div>
 
-          <div style={{ background: 'var(--m3-surface-2)', padding: '8px 12px', borderRadius: '10px' }}>
-            <p style={{ fontSize: '0.65rem', fontWeight: 700, marginBottom: '6px', color: 'var(--m3-secondary)', textTransform: 'uppercase' }}>Projeto</p>
+          <div style={{ background: 'var(--m3-surface-2)', padding: '4px 8px', borderRadius: '8px' }}>
+            <p style={{ fontSize: '0.55rem', fontWeight: 700, marginBottom: '2px', color: 'var(--m3-secondary)', textTransform: 'uppercase', opacity: 0.8 }}>Projeto</p>
             {!isCreatingProject ? (
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '4px' }}>
                 <select
                   className="m3-select"
                   value={destination.plan_id || ""}
@@ -455,48 +441,35 @@ export default function Dashboard() {
                       fetchBuckets(e.target.value);
                     }
                   }}
-                  style={{ flex: 1, minWidth: '100px', height: '30px', fontSize: '0.75rem' }}
+                  style={{ flex: 1, height: '24px', fontSize: '0.7rem', padding: '0 4px' }}
                 >
-                  <option value="">-- Plano --</option>
-                  <option value="NEW" style={{ fontWeight: 600, color: 'var(--m3-primary)' }}>+ Novo Projeto</option>
+                  <option value="">--</option>
+                  <option value="NEW" style={{ fontWeight: 600, color: 'var(--m3-primary)' }}>+ Novo</option>
                   {data.radar.map((p: any) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
-                {buckets.length > 0 && (
-                  <select
-                    className="m3-select"
-                    onChange={(e) => setDestination({ ...destination, bucket_id: e.target.value })}
-                    style={{ flex: 1, minWidth: '80px', height: '30px', fontSize: '0.75rem' }}
-                  >
-                    <option value="">-- Bucket --</option>
-                    {buckets.map((b: any) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
-                )}
                 <button
                   className="btn-primary"
                   disabled={loadingForm || !destination.plan_id || !destination.bucket_id}
-                  style={{ height: '30px', padding: '0 10px', fontSize: '0.7rem', background: 'var(--m3-secondary-container)', color: 'var(--m3-on-secondary-container)' }}
+                  style={{ height: '24px', padding: '0 6px', fontSize: '0.65rem', background: 'var(--m3-secondary-container)', color: 'var(--m3-on-secondary-container)' }}
                   onClick={() => handleAction('project')}
                 >
-                  🚀 Enviar
+                  🚀
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div style={{ display: 'flex', gap: '4px' }}>
                 <input
                   type="text"
-                  placeholder="Nome do Novo Projeto"
+                  placeholder="Nome..."
                   className="m3-input"
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
-                  style={{ flex: 1, height: '30px', fontSize: '0.75rem' }}
+                  style={{ flex: 1, height: '24px', fontSize: '0.7rem' }}
                   autoFocus
                 />
-                <button className="btn-primary" onClick={handleCreateProject} disabled={loadingForm} style={{ height: '30px', padding: '0 10px', fontSize: '0.7rem' }}>💾</button>
-                <button className="btn-primary" onClick={() => setIsCreatingProject(false)} style={{ background: 'none', color: 'var(--m3-outline)', border: '1px solid var(--m3-outline)', height: '30px', padding: '0 10px', fontSize: '0.7rem' }}>✖</button>
+                <button className="btn-primary" onClick={handleCreateProject} disabled={loadingForm} style={{ height: '24px', padding: '0 6px', fontSize: '0.65rem' }}>💾</button>
               </div>
             )}
           </div>
@@ -505,75 +478,106 @@ export default function Dashboard() {
     );
   };
 
+  const handleQuickAdd = async () => {
+    if (!quickAddTaskText.trim()) return;
+    const token = localStorage.getItem("ms_token");
+    try {
+      const res = await fetch("/api/todo/quick-add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, text: quickAddTaskText })
+      });
+      if (res.ok) {
+        setQuickAddTaskText("");
+        fetchClarifyData();
+      }
+    } catch (e) { console.error(e); }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case "Esclarecer":
-        const toggleSection = (section: string) => {
-          setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-        };
-
         const renderSection = (title: string, items: any[], sectionId: string, icon: string) => {
-          const isExpanded = expandedSections[sectionId];
-          const displayItems = isExpanded ? items : items.slice(0, 5);
+          const isCollapsed = collapsedSections[`clarify-${sectionId}`];
 
           return (
-            <div style={{ marginBottom: '32px' }}>
-              <h3 className="card-title" style={{ justifyContent: 'flex-start', gap: '12px', fontSize: '1rem' }}>
-                {icon} {title} ({items.length})
-              </h3>
-              <div className="dashboard-grid">
-                {displayItems.map((item, i) => (
-                  <ClarifyForm key={`${sectionId}-${item.id || i}`} item={item} type={sectionId} />
-                ))}
-                {items.length === 0 && (
-                  <div className="fecd-card" style={{ opacity: 0.7, padding: '12px' }}>Nenhum item pendente nesta categoria.</div>
-                )}
-                {items.length > 5 && (
-                  <button
-                    className="btn-primary"
-                    style={{ background: 'var(--m3-surface-variant)', color: 'var(--m3-on-surface)', minWidth: '200px', alignSelf: 'center', marginTop: '8px' }}
-                    onClick={() => toggleSection(sectionId)}
-                  >
-                    {isExpanded ? "🔼 Mostrar Menos" : `🔽 Ver mais ${items.length - 5} itens`}
-                  </button>
-                )}
+            <div style={{ marginBottom: '24px', border: '1px solid var(--m3-surface-variant)', borderRadius: '16px', overflow: 'hidden', background: 'var(--m3-surface-1)' }}>
+              <div
+                onClick={() => toggleCollapse(`clarify-${sectionId}`)}
+                style={{
+                  padding: '8px 16px',
+                  background: 'var(--m3-surface-2)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: isCollapsed ? 'none' : '1px solid var(--m3-surface-variant)'
+                }}
+              >
+                <h3 className="card-title" style={{ margin: 0, fontSize: '0.9rem', color: 'var(--m3-on-surface-variant)' }}>
+                  {icon} {title} ({items.length})
+                </h3>
+                <span style={{ fontSize: '0.8rem' }}>{isCollapsed ? "▶️" : "▼"}</span>
               </div>
+
+              {!isCollapsed && (
+                <div style={{ padding: '12px' }}>
+                  <div className="dashboard-grid" style={{ gap: '10px' }}>
+                    {items.map((item, i) => (
+                      <ClarifyForm key={`${sectionId}-${item.id || i}`} item={item} type={sectionId} />
+                    ))}
+                    {items.length === 0 && (
+                      <div style={{ opacity: 0.6, fontSize: '0.8rem', padding: '10px' }}>Vazio.</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           );
         };
 
         return (
-          <div className="tab-content" style={{ width: '100%', margin: '0 auto' }}>
-            <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="tab-content" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
+            <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
                 <h2 className="page-title">🧠 Esclarecer</h2>
-                <p className="page-subtitle">Decida o destino de cada captura.</p>
+                <p className="page-subtitle">Ponte GTD: Processe suas capturas para listas de ação.</p>
               </div>
-              <button
-                className="btn-primary"
-                onClick={() => setShowProcessed(!showProcessed)}
-                style={{ background: showProcessed ? 'var(--m3-primary)' : 'var(--m3-surface-variant)', color: showProcessed ? 'var(--m3-on-primary)' : 'var(--m3-on-surface)' }}
-              >
-                {showProcessed ? "🙈 Esconder Histórico" : `👁️ Histórico (${processedSession.length})`}
-              </button>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', background: 'var(--m3-surface-2)', padding: '4px', borderRadius: '12px', border: '1px solid var(--m3-outline)' }}>
+                  <input
+                    type="text"
+                    placeholder="Captura rápida..."
+                    value={quickAddTaskText}
+                    onChange={(e) => setQuickAddTaskText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+                    style={{ background: 'none', border: 'none', padding: '6px 12px', fontSize: '0.85rem', width: '250px', outline: 'none' }}
+                  />
+                  <button onClick={handleQuickAdd} className="btn-primary" style={{ padding: '6px 12px', borderRadius: '8px', height: 'auto' }}>⚡ Capturar</button>
+                </div>
+                <button
+                  className="btn-primary"
+                  onClick={() => setShowProcessed(!showProcessed)}
+                  style={{ background: showProcessed ? 'var(--m3-primary)' : 'var(--m3-surface-variant)', color: showProcessed ? 'var(--m3-on-primary)' : 'var(--m3-on-surface)' }}
+                >
+                  {showProcessed ? "🙈 Esconder" : `👁️ (${processedSession.length})`}
+                </button>
+              </div>
             </header>
 
-            <div className="clarify-stack" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="clarify-stack" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {showProcessed && (
-                <div style={{ marginBottom: '32px', padding: '16px', background: 'var(--m3-surface-2)', borderRadius: '16px', border: '2px dashed var(--m3-outline)' }}>
-                  <h3 className="card-title" style={{ color: 'var(--m3-primary)', fontSize: '0.9rem' }}>✅ Processados nesta sessão</h3>
-                  <div className="dashboard-grid">
+                <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--m3-surface-2)', borderRadius: '12px', border: '1px dashed var(--m3-outline)' }}>
+                  <h3 style={{ fontSize: '0.8rem', marginBottom: '8px' }}>✅ Processados</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {processedSession.map((item, i) => (
-                      <div key={`proc-${i}`} className="list-item" style={{ background: 'var(--m3-surface-1)', borderRadius: '8px' }}>
-                        <span style={{ fontWeight: 600, flex: 1 }}>{item.subject || item.text}</span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--m3-primary)' }}>{item.processedAt}</span>
-                      </div>
+                      <span key={`p-${i}`} style={{ fontSize: '0.75rem', background: 'var(--m3-surface-1)', padding: '2px 8px', borderRadius: '4px' }}>{item.subject || item.text}</span>
                     ))}
-                    {processedSession.length === 0 && <p style={{ fontSize: '0.8rem' }}>Nenhum item processado.</p>}
                   </div>
                 </div>
               )}
 
+              {renderSection("Caixa de Entrada", clarifyData.inbox_tasks, "tasks", "📥")}
               {renderSection("Capturas Digitais (@Ações)", clarifyData.emails.acao, "acao", "⚡")}
               {renderSection("Radar de Delegação (@Aguardando)", clarifyData.emails.aguardando, "aguardando", "⏳")}
               {renderSection("Demais Sinalizados", clarifyData.emails.outros, "outros", "📧")}
@@ -683,6 +687,8 @@ export default function Dashboard() {
           </div>
         );
       case "Mapa":
+        const [previewTask, setPreviewTask] = useState<any>(null);
+
         const initPrint = () => {
           if (printSelections) return;
           const initial = {
@@ -693,9 +699,14 @@ export default function Dashboard() {
             })),
             tasks: Object.entries(data.contexts || {}).reduce((acc: any, [ctx, tasks]: [string, any]) => {
               acc[ctx] = tasks.map((t: any) => ({
-                selected: t.is_today, // Prioridade: data de hoje pré-marcada
+                id: t.id,
+                selected: t.is_today,
                 text: t.title,
-                show_notes: false // Por padrão, notas desmarcadas
+                show_notes: false,
+                has_notes: t.has_notes,
+                notes: t.notes,
+                has_attachments: t.has_attachments,
+                subtasks: (t.subtasks || []).map((st: any) => ({ ...st, selected: true }))
               }));
               return acc;
             }, {}),
@@ -727,7 +738,11 @@ export default function Dashboard() {
                   const final = {
                     calendar: printSelections.calendar.filter((c: any) => c.selected).map((c: any) => ({ time: c.time, subject: c.subject })),
                     tasks: Object.entries(printSelections.tasks).reduce((acc: any, [ctx, tasks]: [string, any]) => {
-                      const sel = tasks.filter((t: any) => t.selected).map((t: any) => ({ text: t.text, show_notes: t.show_notes }));
+                      const sel = tasks.filter((t: any) => t.selected).map((t: any) => ({
+                        text: t.text,
+                        show_notes: t.show_notes,
+                        subtasks: t.subtasks?.filter((st: any) => st.selected).map((st: any) => st.title)
+                      }));
                       if (sel.length > 0) acc[ctx] = sel;
                       return acc;
                     }, {}),
@@ -755,7 +770,7 @@ export default function Dashboard() {
                   <>
                     <div className="fecd-card">
                       <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse("print_calendar")}>
-                        <span>🕒 Calendário (Paisagem Rígida)</span>
+                        <span>🕒 Calendário</span>
                         <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{collapsedSections["print_calendar"] ? "▶️" : "▼"}</span>
                       </h3>
                       {!collapsedSections["print_calendar"] && printSelections.calendar.map((ev: any, i: number) => (
@@ -784,25 +799,48 @@ export default function Dashboard() {
                             <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{collapsedSections[collapseKey] ? "▶️" : "▼"}</span>
                           </h3>
                           {!collapsedSections[collapseKey] && tasks.map((t: any, idx: number) => (
-                            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                              <input type="checkbox" checked={t.selected} onChange={(e) => {
-                                const newer = { ...printSelections.tasks };
-                                newer[ctx][idx].selected = e.target.checked;
-                                setPrintSelections({ ...printSelections, tasks: newer });
-                              }} />
-                              <input className="m3-input" style={{ flex: 1, height: '26px', fontSize: '0.75rem' }} value={t.text} onChange={(e) => {
-                                const newer = { ...printSelections.tasks };
-                                newer[ctx][idx].text = e.target.value;
-                                setPrintSelections({ ...printSelections, tasks: newer });
-                              }} />
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', opacity: 0.7, cursor: 'pointer' }}>
-                                <input type="checkbox" checked={t.show_notes} onChange={(e) => {
+                            <div key={idx} style={{ marginBottom: '16px' }}>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                                <input type="checkbox" checked={t.selected} onChange={(e) => {
                                   const newer = { ...printSelections.tasks };
-                                  newer[ctx][idx].show_notes = e.target.checked;
+                                  newer[ctx][idx].selected = e.target.checked;
                                   setPrintSelections({ ...printSelections, tasks: newer });
                                 }} />
-                                Notas
-                              </label>
+                                <input className="m3-input" style={{ flex: 1, height: '26px', fontSize: '0.75rem' }} value={t.text} onChange={(e) => {
+                                  const newer = { ...printSelections.tasks };
+                                  newer[ctx][idx].text = e.target.value;
+                                  setPrintSelections({ ...printSelections, tasks: newer });
+                                }} />
+                                {t.has_attachments && <span title="Possui Anexos" style={{ cursor: 'pointer', fontSize: '0.9rem' }} onClick={() => setPreviewTask(t)}>📎</span>}
+                                {t.has_notes && (
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', opacity: 0.7, cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={t.show_notes} onChange={(e) => {
+                                      const newer = { ...printSelections.tasks };
+                                      newer[ctx][idx].show_notes = e.target.checked;
+                                      setPrintSelections({ ...printSelections, tasks: newer });
+                                    }} />
+                                    Notas
+                                  </label>
+                                )}
+                                {(t.has_notes || t.has_attachments) && (
+                                  <button onClick={() => setPreviewTask(t)} style={{ background: 'none', border: 'none', color: 'var(--m3-primary)', fontSize: '0.65rem', cursor: 'pointer', fontWeight: 700 }}>VER</button>
+                                )}
+                              </div>
+                              {/* Subtarefas Encadeadas */}
+                              {(t.subtasks?.length > 0) && (
+                                <div style={{ marginLeft: '24px', borderLeft: '2px solid var(--m3-surface-2)', paddingLeft: '8px' }}>
+                                  {t.subtasks.map((st: any, sIdx: number) => (
+                                    <div key={st.id} style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '2px' }}>
+                                      <input type="checkbox" checked={st.selected} onChange={(e) => {
+                                        const newer = { ...printSelections.tasks };
+                                        newer[ctx][idx].subtasks[sIdx].selected = e.target.checked;
+                                        setPrintSelections({ ...printSelections, tasks: newer });
+                                      }} />
+                                      <span style={{ fontSize: '0.65rem', color: 'var(--m3-on-surface-variant)' }}>{st.title}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -852,7 +890,7 @@ export default function Dashboard() {
                 {printSelections && (
                   <>
                     <div className="preview-section">
-                      <div className="preview-section-title">🕒 Paisagem Rígida</div>
+                      <div className="preview-section-title">🕒 Calendário</div>
                       {printSelections.calendar.filter((e: any) => e.selected).map((ev: any, i: number) => (
                         <div key={i} className="preview-list-item">
                           <span style={{ fontWeight: 700, minWidth: '35px' }}>{ev.time}</span>
@@ -865,9 +903,18 @@ export default function Dashboard() {
                       <div className="preview-section-title">🚀 Próximas Ações</div>
                       {Object.entries(printSelections.tasks).map(([ctx, tasks]: [string, any]) =>
                         tasks.filter((t: any) => t.selected).map((t: any, idx: number) => (
-                          <div key={idx} className="preview-list-item">
-                            <div className="preview-checkbox-box"></div>
-                            <span>{t.text} <small style={{ opacity: 0.5 }}>@{ctx}</small></span>
+                          <div key={idx}>
+                            <div className="preview-list-item">
+                              <div className="preview-checkbox-box"></div>
+                              <span>{t.text} <small style={{ opacity: 0.5 }}>@{ctx}</small></span>
+                            </div>
+                            {/* Subtarefas no Preview */}
+                            {t.subtasks?.filter((st: any) => st.selected).map((st: any, sIdx: number) => (
+                              <div key={`st-${sIdx}`} className="preview-list-item" style={{ marginLeft: '12px', fontSize: '0.45rem', opacity: 0.7 }}>
+                                <div className="preview-checkbox-box" style={{ width: '6px', height: '6px' }}></div>
+                                <span>{st.title}</span>
+                              </div>
+                            ))}
                           </div>
                         ))
                       )}
@@ -901,6 +948,32 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+            {/* MODAL DE PREVIEW TASK (Ver Notas e Anexos antes de imprimir) */}
+            {previewTask && (
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }} onClick={() => setPreviewTask(null)}>
+                <div style={{ background: 'white', padding: '32px', borderRadius: '24px', maxWidth: '600px', width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 900 }}>🔍 Verificação Rápida</h2>
+                    <button onClick={() => setPreviewTask(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--m3-outline)' }}>✖</button>
+                  </div>
+                  <h3 style={{ marginBottom: '16px', color: 'var(--m3-primary)' }}>{previewTask.text}</h3>
+                  <div style={{ background: 'var(--m3-surface-2)', padding: '20px', borderRadius: '16px', maxHeight: '400px', overflowY: 'auto' }}>
+                    <p style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--m3-outline)', textTransform: 'uppercase', marginBottom: '8px' }}>Notas da Tarefa</p>
+                    <div
+                      style={{ fontSize: '0.9rem', lineHeight: 1.5, color: 'var(--m3-on-surface)' }}
+                      dangerouslySetInnerHTML={{ __html: previewTask.notes || "Sem notas." }}
+                    />
+                    {previewTask.has_attachments && (
+                      <div style={{ marginTop: '24px', borderTop: '1px solid var(--m3-outline-variant)', paddingTop: '16px' }}>
+                        <p style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--m3-outline)', textTransform: 'uppercase', marginBottom: '8px' }}>Possui Anexos 📎</p>
+                        <p style={{ fontSize: '0.8rem', fontStyle: 'italic' }}>Consulte o aplicativo original ou o Outlook para baixar os arquivos.</p>
+                      </div>
+                    )}
+                  </div>
+                  <button className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px' }} onClick={() => setPreviewTask(null)}>Fechar Visualização</button>
+                </div>
+              </div>
+            )}
           </div>
         );
       case "Revisão":

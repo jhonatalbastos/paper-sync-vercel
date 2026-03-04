@@ -31,19 +31,19 @@ def draw_header(p, data, width, height):
 
 def draw_capture_box(p, width):
     """Desenha a caixa de captura rápida no rodapé da PRIMEIRA página."""
-    inbox_y_start = 1.2*cm
-    inbox_height = 4.2*cm
+    inbox_y_start = 1.0*cm
+    inbox_height = 4.5*cm
     p.setStrokeColor(colors.HexColor("#cbd5e1"))
     p.rect(1.5*cm, inbox_y_start, width - 3*cm, inbox_height, stroke=1, fill=0)
     
-    # Aumentado para 10 linhas
-    for i in range(1, 11):
-        line_y = inbox_y_start + (i * 0.4*cm)
+    # Linhas de escrita (8 linhas com espaçamento maior para a primeira)
+    for i in range(1, 9):
+        line_y = inbox_y_start + (i * 0.45*cm)
         p.line(1.5*cm, line_y, width - 1.5*cm, line_y)
         
-    p.setFont("Helvetica-Bold", 11)
+    p.setFont("Helvetica-Bold", 10.5)
     p.setFillColor(colors.HexColor("#475569"))
-    p.drawString(1.8*cm, inbox_y_start + inbox_height - 0.4*cm, "📥 CAPTURA RÁPIDA (Inbox / Notas)")
+    p.drawString(1.8*cm, inbox_y_start + inbox_height - 0.55*cm, "📥 CAPTURA RÁPIDA (Inbox / Notas)")
 
 def draw_wrapped_line(p, text, x, y, max_width, checkbox=True, is_overdue=False):
     """Auxiliar para desenhar texto com quebra de linha."""
@@ -86,7 +86,7 @@ def generate_gtd_page(data):
     # 1. Calendário
     p.setFont("Helvetica-Bold", 11.5)
     p.setFillColor(colors.HexColor("#2563eb"))
-    p.drawString(1.5*cm, y, "PAISAGEM RÍGIDA (Eventos do Dia)")
+    p.drawString(1.5*cm, y, "CALENDÁRIO (Eventos do Dia)")
     y -= 0.5*cm
     p.setFont("Helvetica", 9)
     p.setFillColor(colors.black)
@@ -138,10 +138,28 @@ def generate_gtd_page(data):
             # Ajuste para campos 'text' (frontend) ou 'title' (M365)
             if isinstance(t, dict):
                 content = t.get('text') or t.get('title') or ""
+                subtasks = t.get('subtasks', [])
             else:
                 content = str(t)
+                subtasks = []
                 
             y = draw_wrapped_line(p, content, 2.2*cm, y, max_w, checkbox=True)
+            
+            # --- Renderizar Subtarefas (Checklist) ---
+            for st in subtasks:
+                if y < current_y_limit:
+                    p.showPage()
+                    y = start_new_page(p)
+                    current_y_limit = y_limit_other_pages
+                    p.setFont("Helvetica", 9)
+                
+                p.setFont("Helvetica", 7.5)
+                p.setFillColor(colors.HexColor("#475569"))
+                y = draw_wrapped_line(p, st, 3.2*cm, y, max_w - 1*cm, checkbox=True)
+                p.setFont("Helvetica", 9)
+                p.setFillColor(colors.black)
+                y += 0.05*cm # Compensar um pouco o espaço das subtarefas
+            
             y -= 0.05*cm
         y -= 0.3*cm
 
