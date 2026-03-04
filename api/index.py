@@ -582,11 +582,13 @@ async def handle_reference_action(request: Request):
           </body>
         </html>
         """
-        requests.post(
+        res_page = requests.post(
             f"{GRAPH_BASE}/me/onenote/sections/{section_id}/pages",
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/xhtml+xml"},
             data=html_content.encode('utf-8')
-        )
+        ).json()
+        
+        return {"status": "success", "url": res_page.get('links', {}).get('oneNoteWebUrl', {}).get('href')}
 
     # 3. Mover para pasta de Referência no Outlook
     if item['type'] == 'email':

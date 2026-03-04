@@ -265,6 +265,7 @@ export default function Dashboard() {
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [newProjectName, setNewProjectName] = useState("");
     const [refCategory, setRefCategory] = useState("Geral");
+    const [lastCreatedUrl, setLastCreatedUrl] = useState<string | null>(null);
 
     const fetchBuckets = async (planId: string) => {
       const token = localStorage.getItem("ms_token");
@@ -528,7 +529,7 @@ export default function Dashboard() {
                 onClick={async () => {
                   setLoadingForm(true);
                   try {
-                    await fetch('/api/clarify/reference', {
+                    const res = await fetch('/api/clarify/reference', {
                       method: 'POST',
                       body: JSON.stringify({
                         token: localStorage.getItem("ms_token"),
@@ -542,6 +543,8 @@ export default function Dashboard() {
                         category: refCategory
                       })
                     });
+                    const resData = await res.json();
+                    if (resData.url) setLastCreatedUrl(resData.url);
                     setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString() }, ...prev]);
                     fetchClarifyData();
                   } finally { setLoadingForm(false); }
@@ -576,6 +579,13 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {lastCreatedUrl && (
+          <div style={{ marginTop: '8px', padding: '8px', background: '#e8f5e9', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.65rem', color: '#2e7d32', fontWeight: 600 }}>✅ Arquivado com sucesso!</span>
+            <a href={lastCreatedUrl} target="_blank" rel="noreferrer" style={{ fontSize: '0.65rem', color: '#1b5e20', fontWeight: 900, textDecoration: 'underline' }}>Abrir no OneNote ↗️</a>
+          </div>
+        )}
       </div>
     );
   };
