@@ -23,6 +23,7 @@ except ImportError:
     import vision_utils
     from pdf_utils import generate_gtd_page
     from vision_utils import process_scan, get_unprocessed_inbox_notes, mark_note_as_processed, save_page_snapshot
+    from groq_utils import process_scan_with_ai, get_weekly_review_guidance
 
 app = FastAPI()
 

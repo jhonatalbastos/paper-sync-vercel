@@ -8,7 +8,13 @@ load_dotenv()
 # Chave deve ser definida no .env ou nas variáveis do Vercel
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-client = Groq(api_key=GROQ_API_KEY)
+# Inicialização segura do cliente
+client = None
+if GROQ_API_KEY:
+    try:
+        client = Groq(api_key=GROQ_API_KEY)
+    except:
+        client = None
 
 def process_scan_with_ai(image_bytes=None):
     """
@@ -36,20 +42,20 @@ def process_scan_with_ai(image_bytes=None):
     Entrada atual: 
     """
     
-    completion = client.chat.completions.create(
-        model="llama3-8b-8192",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
-    )
-    
-    # Simulação de extração do JSON de resposta
+    if not GROQ_API_KEY or not client:
+        return ["Nota capturada (Otimização por IA indisponível)"]
+
     try:
-        # Aqui converteríamos a resposta da IA em uma lista real
-        # Mas para o teste usaremos a resposta processada
-        notes = ["Adicionar no pedido de Carta de Circularização as contas que não estão listadas", "Revisar contrato de aluguel", "@Espera: Resposta Bradesco"]
-        return notes
-    except:
-        return ["Nota capturada via IA"]
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+        )
+        # Por enquanto mantemos a simulação de extração do JSON de resposta simplificada
+        return ["Adicionar no pedido de Carta de Circularização as contas que não estão listadas", "Revisar contrato de aluguel", "@Espera: Resposta Bradesco"]
+    except Exception as e:
+        print(f"Erro no processamento de IA: {e}")
+        return ["Nota capturada via fallback"]
 
 def get_weekly_review_guidance(step_index=0):
     """
@@ -85,13 +91,22 @@ def get_weekly_review_guidance(step_index=0):
     
     if step_index < len(steps):
         current_step = steps[step_index]
-        # Poderíamos usar a IA aqui para dar uma dica personalizada
-        prompt = f"Aja como um coach GTD. Dê uma dica curta e motivadora para o passo: {current_step['title']}"
-        completion = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=50
-        )
-        current_step["ai_tip"] = completion.choices[0].message.content
+        
+        # Inteligência Artificial como adição (não bloqueante)
+        if GROQ_API_KEY and client:
+            try:
+                prompt = f"Aja como um coach GTD. Dê uma dica curta e motivadora para o passo: {current_step['title']}"
+                completion = client.chat.completions.create(
+                    model="llama3-8b-8192",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=50
+                )
+                current_step["ai_tip"] = completion.choices[0].message.content
+            except Exception as e:
+                print(f"Erro na dica da IA: {e}")
+                current_step["ai_tip"] = "Respire fundo e mantenha o foco na sua clareza mental."
+        else:
+            current_step["ai_tip"] = "Dica: Mantenha seu ambiente de trabalho organizado durante a revisão."
+            
         return current_step
     return None
