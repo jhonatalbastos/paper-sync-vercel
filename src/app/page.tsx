@@ -8,22 +8,26 @@ export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Estrutura de Dados GTD Pura
-  const [data, setData] = useState<{
-    landscape: any[], // Paisagem Rígida (Calendário)
-    radar: any[],     // Radar de Delegação (Planner)
-    contexts: { [key: string]: string[] }, // Ações por Contexto (@)
-    sync_time: string
-  }>({
+  interface GTDData {
+    landscape: any[];
+    radar: any[];
+    contexts: { [key: string]: string[] };
+    sync_time: string;
+  }
+
+  interface ClarifyData {
+    emails: { acao: any[]; aguardando: any[]; outros: any[] };
+    paper_notes: any[];
+  }
+
+  const [data, setData] = useState<GTDData>({
     landscape: [],
     radar: [],
     contexts: {},
     sync_time: "--:--"
   });
 
-  const [clarifyData, setClarifyData] = useState<{
-    emails: { acao: any[], aguardando: any[], outros: any[] },
-    paper_notes: any[]
-  }>({
+  const [clarifyData, setClarifyData] = useState<ClarifyData>({
     emails: { acao: [], aguardando: [], outros: [] },
     paper_notes: []
   });
@@ -169,7 +173,7 @@ export default function Dashboard() {
   );
 
   const ClarifyForm = ({ item, type }: { item: any; type: string }) => {
-    const [destination, setDestination] = useState<any>({});
+    const [destination, setDestination] = useState<{ list_id?: string; plan_id?: string; bucket_id?: string }>({});
     const [loadingForm, setLoadingForm] = useState(false);
     const [buckets, setBuckets] = useState<any[]>([]);
     const [isViewing, setIsViewing] = useState(false);
@@ -505,11 +509,11 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {Object.entries(data.contexts).map(([ctx, tasks]: [string, any], i) => (
+              {Object.entries(data.contexts).map(([ctx, tasks], i) => (
                 <div key={i} className="fecd-card">
                   <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
                   <div className="list">
-                    {tasks.map((t: string, idx: number) => (
+                    {tasks.map((t, idx) => (
                       <div key={idx} className="list-item" style={{ fontSize: '0.85rem', padding: '3px 0' }}>• {t}</div>
                     ))}
                   </div>
