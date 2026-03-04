@@ -52,6 +52,7 @@ export default function Dashboard() {
     "Flagged Emails": true,
     "E-mails Sinalizados": true
   });
+  const [previewTask, setPreviewTask] = useState<any>(null);
 
   const contextIcons: { [key: string]: string } = {
     "Escritório": "🏢",
@@ -687,8 +688,6 @@ export default function Dashboard() {
           </div>
         );
       case "Mapa":
-        const [previewTask, setPreviewTask] = useState<any>(null);
-
         const initPrint = () => {
           if (printSelections) return;
           const initial = {

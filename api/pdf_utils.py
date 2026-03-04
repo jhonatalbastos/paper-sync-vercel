@@ -36,14 +36,16 @@ def draw_capture_box(p, width):
     p.setStrokeColor(colors.HexColor("#cbd5e1"))
     p.rect(1.5*cm, inbox_y_start, width - 3*cm, inbox_height, stroke=1, fill=0)
     
-    # Linhas de escrita (8 linhas com espaçamento maior para a primeira)
-    for i in range(1, 9):
-        line_y = inbox_y_start + (i * 0.45*cm)
+    # Linhas de escrita (7 linhas para dar espaço ao título no topo)
+    # Aumentando o passo para 0.5cm e parando antes do título
+    for i in range(1, 8):
+        line_y = inbox_y_start + (i * 0.5*cm)
         p.line(1.5*cm, line_y, width - 1.5*cm, line_y)
         
-    p.setFont("Helvetica-Bold", 10.5)
+    p.setFont("Helvetica-Bold", 11)
     p.setFillColor(colors.HexColor("#475569"))
-    p.drawString(1.8*cm, inbox_y_start + inbox_height - 0.55*cm, "📥 CAPTURA RÁPIDA (Inbox / Notas)")
+    # Posicionado mais ao topo para não bater nas linhas
+    p.drawString(1.8*cm, inbox_y_start + inbox_height - 0.5*cm, "📥 CAPTURA RÁPIDA (Inbox / Notas)")
 
 def draw_wrapped_line(p, text, x, y, max_width, checkbox=True, is_overdue=False):
     """Auxiliar para desenhar texto com quebra de linha."""
