@@ -639,6 +639,59 @@ export default function Dashboard() {
             </div>
           </div>
         );
+      case "Guia":
+        return (
+          <div className="tab-content">
+            <header className="header-row">
+              <div><h2 className="page-title">📖 Guia do Ecossistema</h2><p className="page-subtitle">Como dominar seu fluxo GTD no PaperSync 365.</p></div>
+            </header>
+
+            <div className="dashboard-grid" style={{ gap: '20px' }}>
+              <div className="fecd-card">
+                <h3 className="card-title" style={{ color: 'var(--m3-primary)' }}>1. 🚀 Microsoft To Do: Contextos e Ação</h3>
+                <p style={{ fontSize: '0.85rem', marginBottom: '12px' }}>O To Do é onde vivem suas <strong>Próximas Ações</strong> (passos únicos). O sistema organiza e busca nestas listas:</p>
+                <div style={{ background: 'var(--m3-surface-2)', padding: '12px', borderRadius: '8px', fontSize: '0.8rem' }}>
+                  <p>• <strong>Tasks (Inbox):</strong> Para onde tudo que você captura no papel ou dita cai inicialmente.</p>
+                  <p>• <strong>@Escritório / @Computador:</strong> Listas baseadas em onde você está ou o que tem em mãos.</p>
+                  <p>• <strong>Assuntos a Tratar:</strong> Pouso para pautas de reuniões rápidas.</p>
+                </div>
+              </div>
+
+              <div className="fecd-card">
+                <h3 className="card-title" style={{ color: 'var(--m3-secondary)' }}>2. 🎯 Microsoft Planner: Projetos</h3>
+                <p style={{ fontSize: '0.85rem', marginBottom: '12px' }}>Cada <strong>Plano</strong> é um Projeto. O App monitora o progresso através dos Buckets:</p>
+                <div style={{ background: 'var(--m3-surface-2)', padding: '12px', borderRadius: '8px', fontSize: '0.8rem' }}>
+                  <p>• <strong>Bucket "Próxima Ação":</strong> O que estiver aqui aparece no topo do seu papel impresso.</p>
+                  <p>• <strong>Bucket "Delegado":</strong> Alimenta seu Radar de Delegação automático.</p>
+                  <p>• <strong>Progresso:</strong> Tarefas marcadas como concluídas no Planner atualizam o gráfico aqui em tempo real.</p>
+                </div>
+              </div>
+
+              <div className="fecd-card">
+                <h3 className="card-title" style={{ color: '#e91e63' }}>3. 📧 Microsoft Outlook: Captura Inteligente</h3>
+                <p style={{ fontSize: '0.85rem', marginBottom: '12px' }}>Fluxo de processamento de e-mails sinalizados:</p>
+                <div style={{ background: 'var(--m3-surface-2)', padding: '12px', borderRadius: '8px', fontSize: '0.8rem' }}>
+                  <p>• <strong>Bandeirinha (Flag):</strong> Sinalize e-mails que levam + de 2 minutos.</p>
+                  <p>• <strong>Esclarecer:</strong> Use a aba Esclarecer no App para decidir: Contexto ou Projeto? O App move o e-mail para a pasta correta (ex: @Ações) automaticamente.</p>
+                </div>
+              </div>
+
+              <div className="fecd-card">
+                <h3 className="card-title">4. ✍️ Integração Analógica (Papel)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div style={{ background: 'var(--m3-primary-container)', color: 'var(--m3-on-primary-container)', padding: '12px', borderRadius: '8px' }}>
+                    <h4 style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Capturar</h4>
+                    <p style={{ fontSize: '0.75rem' }}>Escreva na "Caixa de Captura" do papel. Não se preocupe em organizar agora, apenas tire da cabeça.</p>
+                  </div>
+                  <div style={{ background: 'var(--m3-secondary-container)', color: 'var(--m3-on-secondary-container)', padding: '12px', borderRadius: '8px' }}>
+                    <h4 style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Escalabilidade</h4>
+                    <p style={{ fontSize: '0.75rem' }}>Ao final do dia, use o Scan do App. A IA lê suas anotações e as envia para o Inbox digital para decisão posterior.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       default:
         return (
           <>
@@ -713,7 +766,8 @@ export default function Dashboard() {
             { id: "Esclarecer", label: "Esclarecer", icon: "🧠" },
             { id: "Projetos", label: "Radar", icon: "🤝" },
             { id: "Impressao", label: "Mapa", icon: "🖨️" },
-            { id: "Upload", label: "Scan", icon: "📸" }
+            { id: "Upload", label: "Scan", icon: "📸" },
+            { id: "Guia", label: "Guia", icon: "📖" }
           ].map((item) => (
             <div
               key={item.id}
