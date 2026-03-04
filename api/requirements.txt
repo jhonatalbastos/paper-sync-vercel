@@ -1,0 +1,12 @@
+requests
+reportlab
+qrcode[pil]
+Pillow
+pandas
+opencv-python-headless
+pytesseract
+pypdf
+fastapi
+uvicorn
+python-multipart
+python-dotenv
