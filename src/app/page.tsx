@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [processedSession, setProcessedSession] = useState<any[]>([]);
   const [showProcessed, setShowProcessed] = useState(false);
   const [archivedProjects, setArchivedProjects] = useState<string[]>([]);
+  const [printSelections, setPrintSelections] = useState<any>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("archived_projects");
@@ -110,9 +111,9 @@ export default function Dashboard() {
     }
   };
 
-  const generatePDF = async () => {
+  const generatePDF = async (customData?: any) => {
     try {
-      const pdfData = {
+      const sourceData = customData || {
         calendar: data.landscape.map(ev => ({
           time: new Date(ev.start.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           subject: ev.subject
@@ -124,7 +125,7 @@ export default function Dashboard() {
       const res = await fetch("/api/generate-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pdfData),
+        body: JSON.stringify(sourceData),
       });
 
       const blob = await res.blob();
@@ -567,18 +568,133 @@ export default function Dashboard() {
           </div>
         );
       case "Impressao":
+        const initPrint = () => {
+          if (printSelections) return;
+          const initial = {
+            calendar: data.landscape.map(ev => ({
+              selected: true,
+              time: new Date(ev.start.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+              subject: ev.subject
+            })),
+            tasks: Object.entries(data.contexts).reduce((acc: any, [ctx, tasks]) => {
+              acc[ctx] = tasks.map(t => ({ selected: true, text: t }));
+              return acc;
+            }, {}),
+            projects: data.radar.filter((p: any) => !archivedProjects.includes(p.id))
+              .map(p => ({ selected: true, plan: p.name, task: "Seguir com projeto" }))
+          };
+          setPrintSelections(initial);
+        };
+
+        if (isAuthenticated && data && !printSelections) initPrint();
+
         return (
-          <div className="tab-content">
-            <header className="header-row">
-              <div><h2 className="page-title">🖨️ Mapa de Batalha</h2><p className="page-subtitle">Gere sua folha A4 diária.</p></div>
-            </header>
-            <div className="fecd-card" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-              <h3 className="card-title" style={{ justifyContent: 'center' }}>Configurar Impressão</h3>
-              <p style={{ marginBottom: '1.5rem', color: 'var(--m3-on-surface-variant)', fontSize: '0.85rem' }}>Isso consolidará sua Paisagem Rígida e Ações por Contexto.</p>
-              <button className="btn-primary" onClick={generatePDF} style={{ width: '100%', justifyContent: 'center' }}>
-                Gerar PDF (A4)
+          <div className="tab-content" style={{ width: '100%', maxWidth: '1000px', margin: '0 auto' }}>
+            <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 className="page-title">🖨️ Configurar Mapa de Batalha</h2>
+                <p className="page-subtitle">Personalize os itens que serão impressos na sua folha A4.</p>
+              </div>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  const final = {
+                    calendar: printSelections.calendar.filter((c: any) => c.selected).map((c: any) => ({ time: c.time, subject: c.subject })),
+                    tasks: Object.entries(printSelections.tasks).reduce((acc: any, [ctx, tasks]: [string, any]) => {
+                      const sel = tasks.filter((t: any) => t.selected).map((t: any) => t.text);
+                      if (sel.length > 0) acc[ctx] = sel;
+                      return acc;
+                    }, {}),
+                    waiting: printSelections.projects.filter((p: any) => p.selected).map((p: any) => ({ plan: p.plan, task: p.task, bucket: "Radar" }))
+                  };
+                  generatePDF(final);
+                }}
+              >
+                🖨️ Gerar PDF Personalizado
               </button>
+            </header>
+
+            <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+              {printSelections && (
+                <>
+                  <div className="fecd-card">
+                    <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🕒 Calendário (Paisagem Rígida)</h3>
+                    {printSelections.calendar.map((ev: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                        <input type="checkbox" checked={ev.selected} onChange={(e) => {
+                          const newer = [...printSelections.calendar];
+                          newer[i].selected = e.target.checked;
+                          setPrintSelections({ ...printSelections, calendar: newer });
+                        }} />
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, minWidth: '45px' }}>{ev.time}</span>
+                        <input
+                          className="m3-input"
+                          style={{ flex: 1, height: '28px', fontSize: '0.8rem' }}
+                          value={ev.subject}
+                          onChange={(e) => {
+                            const newer = [...printSelections.calendar];
+                            newer[i].subject = e.target.value;
+                            setPrintSelections({ ...printSelections, calendar: newer });
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {Object.entries(printSelections.tasks).map(([ctx, tasks]: [string, any], i: number) => (
+                    <div key={i} className="fecd-card">
+                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
+                      {tasks.map((t: any, idx: number) => (
+                        <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                          <input type="checkbox" checked={t.selected} onChange={(e) => {
+                            const newer = { ...printSelections.tasks };
+                            newer[ctx][idx].selected = e.target.checked;
+                            setPrintSelections({ ...printSelections, tasks: newer });
+                          }} />
+                          <input
+                            className="m3-input"
+                            style={{ flex: 1, height: '28px', fontSize: '0.8rem' }}
+                            value={t.text}
+                            onChange={(e) => {
+                              const newer = { ...printSelections.tasks };
+                              newer[ctx][idx].text = e.target.value;
+                              setPrintSelections({ ...printSelections, tasks: newer });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                  <div className="fecd-card">
+                    <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🤝 Projetos Ativos (Radar)</h3>
+                    {printSelections.projects.map((p: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                        <input type="checkbox" checked={p.selected} onChange={(e) => {
+                          const newer = [...printSelections.projects];
+                          newer[i].selected = e.target.checked;
+                          setPrintSelections({ ...printSelections, projects: newer });
+                        }} />
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: '0.75rem', fontWeight: 700, margin: 0 }}>{p.plan}</p>
+                          <input
+                            className="m3-input"
+                            style={{ width: '100%', height: '26px', fontSize: '0.75rem', marginTop: '4px' }}
+                            value={p.task}
+                            onChange={(e) => {
+                              const newer = [...printSelections.projects];
+                              newer[i].task = e.target.value;
+                              setPrintSelections({ ...printSelections, projects: newer });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
+            {!printSelections && <div className="loading-spinner" style={{ margin: '40px auto' }}></div>}
           </div>
         );
       case "Upload":
