@@ -360,6 +360,11 @@ async def generate_pdf(request: Request):
 
 @app.post("/api/upload")
 async def upload_scan(request: Request):
-    # Lógica simplificada de recebimento de arquivo
-    # Em produção usaríamos python-multipart para ler o corpo da requisição corretamente
-    return {"status": "success", "message": "Scan recebido e processado via Vision IA"}
+    # Em uma implementação real, leríamos os bytes do arquivo aqui
+    # Para o MVP, usamos a lógica definida em vision_utils
+    res = process_scan(None)
+    return {
+        "status": "success", 
+        "message": f"Scan processado! ID: {res['page_id']}. {len(res['inbox_notes'])} notas capturadas.",
+        "data": res
+    }
