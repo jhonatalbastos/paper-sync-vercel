@@ -444,7 +444,7 @@ export default function Dashboard() {
                   <button
                     className="btn-primary"
                     style={{ width: '100%', marginTop: '12px', background: 'var(--m3-surface-variant)', color: 'var(--m3-on-surface)' }}
-                    onClick={() => window.open(`https://tasks.office.com/fecd.org.br/Home/PlanDetails/${p.id}`, '_blank')}
+                    onClick={() => window.open(`https://planner.cloud.microsoft/home/planner/projects/${p.id}`, '_blank')}
                   >
                     Abrir no Planner
                   </button>

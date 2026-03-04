@@ -303,7 +303,7 @@ async def handle_clarify_action(request: Request):
             
             if target_id:
                 new_t = requests.post(f"{GRAPH_BASE}/me/todo/lists/{target_id}/tasks", headers=headers, json={"title": item['title']}).json()
-                planner_url = f"https://tasks.office.com/fecd.org.br/Home/Task/{p_task['id']}"
+                planner_url = f"https://planner.cloud.microsoft/tasks/{p_task['id']}"
                 requests.post(f"{GRAPH_BASE}/me/todo/lists/{target_id}/tasks/{new_t['id']}/linkedResources", headers=headers, json={"webUrl": planner_url, "displayName": "Ver no Planner"})
                 requests.delete(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers)
 
