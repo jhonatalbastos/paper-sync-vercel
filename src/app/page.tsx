@@ -40,16 +40,24 @@ export default function Dashboard() {
   const [processedSession, setProcessedSession] = useState<any[]>([]);
   const [showProcessed, setShowProcessed] = useState(false);
   const [archivedProjects, setArchivedProjects] = useState<string[]>([]);
+  const [hiddenProjects, setHiddenProjects] = useState<string[]>([]);
+  const [isManagingVisibility, setIsManagingVisibility] = useState(false);
   const [printSelections, setPrintSelections] = useState<any>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("archived_projects");
     if (saved) setArchivedProjects(JSON.parse(saved));
+    const savedHidden = localStorage.getItem("hidden_projects");
+    if (savedHidden) setHiddenProjects(JSON.parse(savedHidden));
   }, []);
 
   useEffect(() => {
     localStorage.setItem("archived_projects", JSON.stringify(archivedProjects));
   }, [archivedProjects]);
+
+  useEffect(() => {
+    localStorage.setItem("hidden_projects", JSON.stringify(hiddenProjects));
+  }, [hiddenProjects]);
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
@@ -509,11 +517,41 @@ export default function Dashboard() {
                 <h2 className="page-title">🤝 Radar de Delegação</h2>
                 <p className="page-subtitle">Acompanhamento e status dos Projetos no Planner.</p>
               </div>
-              <button className="btn-primary" onClick={() => setActiveTab("Esclarecer")}>+ Vincular Projeto</button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="btn-primary"
+                  onClick={() => setIsManagingVisibility(!isManagingVisibility)}
+                  style={{ background: isManagingVisibility ? 'var(--m3-primary)' : 'var(--m3-surface-variant)', color: isManagingVisibility ? 'var(--m3-on-primary)' : 'var(--m3-on-surface)' }}
+                >
+                  {isManagingVisibility ? "✅ Salvar Visibilidade" : "⚙️ Editar Visibilidade"}
+                </button>
+                <button className="btn-primary" onClick={() => setActiveTab("Esclarecer")}>+ Vincular Projeto</button>
+              </div>
             </header>
 
+            {isManagingVisibility && (
+              <div className="fecd-card" style={{ marginBottom: '24px', background: 'var(--m3-primary-container)', color: 'var(--m3-on-primary-container)' }}>
+                <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🔍 Selecione os projetos que deseja exibir</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+                  {data.radar.map((p: any) => (
+                    <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer', background: 'white', padding: '8px', borderRadius: '8px' }}>
+                      <input
+                        type="checkbox"
+                        checked={!hiddenProjects.includes(p.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setHiddenProjects(hiddenProjects.filter(id => id !== p.id));
+                          else setHiddenProjects([...hiddenProjects, p.id]);
+                        }}
+                      />
+                      {p.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-              {activeProjects.map((p: any, i: number) => (
+              {data.radar.filter((p: any) => !archivedProjects.includes(p.id) && !hiddenProjects.includes(p.id)).map((p: any, i: number) => (
                 <div key={i} className="fecd-card" style={{ padding: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'flex-start' }}>
                     <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, flex: 1, paddingRight: '10px' }}>{p.name}</h3>
@@ -892,7 +930,7 @@ export default function Dashboard() {
 
               <div className="fecd-card">
                 <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🤝 Radar de Projetos</h3>
-                {data.radar.filter((p: any) => !archivedProjects.includes(p.id)).slice(0, 4).map((p: any, i: number) => (
+                {data.radar.filter((p: any) => !archivedProjects.includes(p.id) && !hiddenProjects.includes(p.id)).slice(0, 4).map((p: any, i: number) => (
                   <div key={i} style={{ marginBottom: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px' }}>
                       <span>{p.name}</span>
