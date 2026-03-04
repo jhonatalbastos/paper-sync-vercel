@@ -389,3 +389,90 @@ body {
   margin-bottom: 8px !important;
   border-left: none !important;
 }
+
+/* Print Preview Styles */
+.print-config-layout {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+@media (max-width: 1400px) {
+  .print-config-layout {
+    grid-template-columns: 1fr;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .a4-preview {
+    margin: 40px auto;
+  }
+}
+
+.a4-preview {
+  background: white;
+  width: 100%;
+  aspect-ratio: 1 / 1.414;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  padding: 0.8cm;
+  color: #0f172a;
+  font-family: 'Inter', sans-serif;
+  position: sticky;
+  top: 24px;
+  overflow: hidden;
+  font-size: 0.55rem;
+  border: 1px solid #e2e8f0;
+}
+
+.preview-header {
+  border-bottom: 1.5px solid #0f172a;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
+
+.preview-section-title {
+  color: #2563eb;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.6rem;
+  margin-bottom: 6px;
+  margin-top: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 1px;
+}
+
+.preview-list-item {
+  margin-bottom: 2px;
+  display: flex;
+  gap: 4px;
+  line-height: 1.1;
+}
+
+.preview-checkbox-box {
+  width: 8px;
+  height: 8px;
+  border: 0.5px solid #94a3b8;
+  margin-top: 1.5px;
+  flex-shrink: 0;
+}
+
+.preview-capture-box {
+  position: absolute;
+  bottom: 0.8cm;
+  left: 0.8cm;
+  right: 0.8cm;
+  height: 2.5cm;
+  border: 1px dashed #cbd5e1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-capture-title {
+  font-weight: 700;
+  color: #64748b;
+  font-size: 0.5rem;
+  text-transform: uppercase;
+}

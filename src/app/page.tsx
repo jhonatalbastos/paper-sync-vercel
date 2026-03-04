@@ -14,6 +14,7 @@ export default function Dashboard() {
     landscape: any[];
     radar: any[];
     contexts: { [key: string]: string[] };
+    planner_paper?: { projects: any[], waiting: any[] };
     sync_time: string;
   }
 
@@ -26,6 +27,7 @@ export default function Dashboard() {
     landscape: [],
     radar: [],
     contexts: {},
+    planner_paper: { projects: [], waiting: [] },
     sync_time: "--:--"
   });
 
@@ -571,17 +573,17 @@ export default function Dashboard() {
         const initPrint = () => {
           if (printSelections) return;
           const initial = {
-            calendar: data.landscape.map(ev => ({
+            calendar: (data.landscape || []).map((ev: any) => ({
               selected: true,
               time: new Date(ev.start.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
               subject: ev.subject
             })),
-            tasks: Object.entries(data.contexts).reduce((acc: any, [ctx, tasks]) => {
-              acc[ctx] = tasks.map(t => ({ selected: true, text: t }));
+            tasks: Object.entries(data.contexts || {}).reduce((acc: any, [ctx, tasks]: [string, any]) => {
+              acc[ctx] = tasks.map((t: any) => ({ selected: true, text: t }));
               return acc;
             }, {}),
-            projects: data.radar.filter((p: any) => !archivedProjects.includes(p.id))
-              .map(p => ({ selected: true, plan: p.name, task: "Seguir com projeto" }))
+            projects: (data.planner_paper?.projects || []).map((p: any) => ({ selected: true, plan: p.plan, task: p.task })),
+            waiting: (data.planner_paper?.waiting || []).map((p: any) => ({ selected: true, plan: p.plan, task: p.task }))
           };
           setPrintSelections(initial);
         };
@@ -589,11 +591,11 @@ export default function Dashboard() {
         if (isAuthenticated && data && !printSelections) initPrint();
 
         return (
-          <div className="tab-content" style={{ width: '100%', maxWidth: '1000px', margin: '0 auto' }}>
+          <div className="tab-content">
             <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 className="page-title">🖨️ Configurar Mapa de Batalha</h2>
-                <p className="page-subtitle">Personalize os itens que serão impressos na sua folha A4.</p>
+                <h2 className="page-title">🖨️ Mapa de Batalha</h2>
+                <p className="page-subtitle">Personalize sua folha A4 diária com preview em tempo real.</p>
               </div>
               <button
                 className="btn-primary"
@@ -605,96 +607,148 @@ export default function Dashboard() {
                       if (sel.length > 0) acc[ctx] = sel;
                       return acc;
                     }, {}),
-                    waiting: printSelections.projects.filter((p: any) => p.selected).map((p: any) => ({ plan: p.plan, task: p.task, bucket: "Radar" }))
+                    waiting: [
+                      ...printSelections.projects.filter((p: any) => p.selected).map((p: any) => ({ plan: p.plan, task: p.task, bucket: "Projeto" })),
+                      ...printSelections.waiting.filter((p: any) => p.selected).map((p: any) => ({ plan: p.plan, task: p.task, bucket: "Delegado" }))
+                    ]
                   };
                   generatePDF(final);
                 }}
               >
-                🖨️ Gerar PDF Personalizado
+                🖨️ Gerar PDF (A4)
               </button>
             </header>
 
-            <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-              {printSelections && (
-                <>
-                  <div className="fecd-card">
-                    <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🕒 Calendário (Paisagem Rígida)</h3>
-                    {printSelections.calendar.map((ev: any, i: number) => (
-                      <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                        <input type="checkbox" checked={ev.selected} onChange={(e) => {
-                          const newer = [...printSelections.calendar];
-                          newer[i].selected = e.target.checked;
-                          setPrintSelections({ ...printSelections, calendar: newer });
-                        }} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, minWidth: '45px' }}>{ev.time}</span>
-                        <input
-                          className="m3-input"
-                          style={{ flex: 1, height: '28px', fontSize: '0.8rem' }}
-                          value={ev.subject}
-                          onChange={(e) => {
+            <div className="print-config-layout">
+              {/* ÁREA DE SELEÇÃO (ESQUERDA) */}
+              <div className="dashboard-grid" style={{ gap: '16px' }}>
+                {printSelections && (
+                  <>
+                    <div className="fecd-card">
+                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🕒 Calendário (Paisagem Rígida)</h3>
+                      {printSelections.calendar.map((ev: any, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                          <input type="checkbox" checked={ev.selected} onChange={(e) => {
+                            const newer = [...printSelections.calendar];
+                            newer[i].selected = e.target.checked;
+                            setPrintSelections({ ...printSelections, calendar: newer });
+                          }} />
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, minWidth: '40px' }}>{ev.time}</span>
+                          <input className="m3-input" style={{ flex: 1, height: '26px', fontSize: '0.75rem' }} value={ev.subject} onChange={(e) => {
                             const newer = [...printSelections.calendar];
                             newer[i].subject = e.target.value;
                             setPrintSelections({ ...printSelections, calendar: newer });
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  {Object.entries(printSelections.tasks).map(([ctx, tasks]: [string, any], i: number) => (
-                    <div key={i} className="fecd-card">
-                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
-                      {tasks.map((t: any, idx: number) => (
-                        <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                          <input type="checkbox" checked={t.selected} onChange={(e) => {
-                            const newer = { ...printSelections.tasks };
-                            newer[ctx][idx].selected = e.target.checked;
-                            setPrintSelections({ ...printSelections, tasks: newer });
                           }} />
-                          <input
-                            className="m3-input"
-                            style={{ flex: 1, height: '28px', fontSize: '0.8rem' }}
-                            value={t.text}
-                            onChange={(e) => {
-                              const newer = { ...printSelections.tasks };
-                              newer[ctx][idx].text = e.target.value;
-                              setPrintSelections({ ...printSelections, tasks: newer });
-                            }}
-                          />
                         </div>
                       ))}
                     </div>
-                  ))}
 
-                  <div className="fecd-card">
-                    <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🤝 Projetos Ativos (Radar)</h3>
-                    {printSelections.projects.map((p: any, i: number) => (
-                      <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                        <input type="checkbox" checked={p.selected} onChange={(e) => {
-                          const newer = [...printSelections.projects];
-                          newer[i].selected = e.target.checked;
-                          setPrintSelections({ ...printSelections, projects: newer });
-                        }} />
-                        <div style={{ flex: 1 }}>
-                          <p style={{ fontSize: '0.75rem', fontWeight: 700, margin: 0 }}>{p.plan}</p>
-                          <input
-                            className="m3-input"
-                            style={{ width: '100%', height: '26px', fontSize: '0.75rem', marginTop: '4px' }}
-                            value={p.task}
-                            onChange={(e) => {
-                              const newer = [...printSelections.projects];
-                              newer[i].task = e.target.value;
-                              setPrintSelections({ ...printSelections, projects: newer });
-                            }}
-                          />
-                        </div>
+                    {Object.entries(printSelections.tasks).map(([ctx, tasks]: [string, any], i: number) => (
+                      <div key={i} className="fecd-card">
+                        <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
+                        {tasks.map((t: any, idx: number) => (
+                          <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                            <input type="checkbox" checked={t.selected} onChange={(e) => {
+                              const newer = { ...printSelections.tasks };
+                              newer[ctx][idx].selected = e.target.checked;
+                              setPrintSelections({ ...printSelections, tasks: newer });
+                            }} />
+                            <input className="m3-input" style={{ flex: 1, height: '26px', fontSize: '0.75rem' }} value={t.text} onChange={(e) => {
+                              const newer = { ...printSelections.tasks };
+                              newer[ctx][idx].text = e.target.value;
+                              setPrintSelections({ ...printSelections, tasks: newer });
+                            }} />
+                          </div>
+                        ))}
                       </div>
                     ))}
+
+                    <div className="fecd-card">
+                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🎯 Projetos e Delegação</h3>
+                      {[...printSelections.projects, ...printSelections.waiting].map((p: any, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                          <input type="checkbox" checked={p.selected} onChange={(e) => {
+                            const isProject = i < printSelections.projects.length;
+                            if (isProject) {
+                              const newer = [...printSelections.projects];
+                              newer[i].selected = e.target.checked;
+                              setPrintSelections({ ...printSelections, projects: newer });
+                            } else {
+                              const newer = [...printSelections.waiting];
+                              newer[i - printSelections.projects.length].selected = e.target.checked;
+                              setPrintSelections({ ...printSelections, waiting: newer });
+                            }
+                          }} />
+                          <div style={{ flex: 1 }}>
+                            <input className="m3-input" style={{ width: '100%', height: '26px', fontSize: '0.75rem' }} value={`${p.plan}: ${p.task}`} readOnly />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* LIVE PREVIEW (DIREITA) */}
+              <div className="a4-preview">
+                <div className="preview-header">
+                  <div>
+                    <h1 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0 }}>Tarefas do Dia</h1>
+                    <p style={{ fontSize: '0.5rem', opacity: 0.6 }}>FECD PaperSync • {new Date().toLocaleDateString()}</p>
                   </div>
-                </>
-              )}
+                  <div style={{ width: '40px', height: '40px', border: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.4rem' }}>QR CODE</div>
+                </div>
+
+                {printSelections && (
+                  <>
+                    <div className="preview-section">
+                      <div className="preview-section-title">🕒 Paisagem Rígida</div>
+                      {printSelections.calendar.filter((e: any) => e.selected).map((ev: any, i: number) => (
+                        <div key={i} className="preview-list-item">
+                          <span style={{ fontWeight: 700, minWidth: '35px' }}>{ev.time}</span>
+                          <span>{ev.subject}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="preview-section">
+                      <div className="preview-section-title">🚀 Próximas Ações</div>
+                      {Object.entries(printSelections.tasks).map(([ctx, tasks]: [string, any]) =>
+                        tasks.filter((t: any) => t.selected).map((t: any, idx: number) => (
+                          <div key={idx} className="preview-list-item">
+                            <div className="preview-checkbox-box"></div>
+                            <span>{t.text} <small style={{ opacity: 0.5 }}>@{ctx}</small></span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="preview-section">
+                      <div className="preview-section-title">🎯 Projetos e Radar</div>
+                      {printSelections.projects.filter((p: any) => p.selected).map((p: any, i: number) => (
+                        <div key={i} className="preview-list-item">
+                          <div className="preview-checkbox-box"></div>
+                          <span>[{p.plan}] {p.task}</span>
+                        </div>
+                      ))}
+                      {printSelections.waiting.filter((p: any) => p.selected).map((p: any, i: number) => (
+                        <div key={i} className="preview-list-item" style={{ fontStyle: 'italic' }}>
+                          <div className="preview-checkbox-box"></div>
+                          <span>Atratar: {p.task} ({p.plan})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <div className="preview-capture-box">
+                  <div className="preview-capture-title">📥 Captura Rápida</div>
+                  <div style={{ flex: 1, borderBottom: '0.5px solid #e2e8f0', marginTop: '10px' }}></div>
+                  <div style={{ flex: 1, borderBottom: '0.5px solid #e2e8f0' }}></div>
+                  <div style={{ flex: 1, borderBottom: '0.5px solid #e2e8f0' }}></div>
+                </div>
+              </div>
             </div>
-            {!printSelections && <div className="loading-spinner" style={{ margin: '40px auto' }}></div>}
           </div>
         );
       case "Upload":
