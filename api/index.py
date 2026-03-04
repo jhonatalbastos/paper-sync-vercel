@@ -141,15 +141,29 @@ def get_dashboard_data(token: str):
     end = datetime.now().replace(hour=23, minute=59, second=59).isoformat() + "Z"
     cal_res = requests.get(f"{GRAPH_BASE}/me/calendarView", headers=headers, params={"startDateTime": start, "endDateTime": end})
     
-    # 2. Projetos (Planner) com PROGRESSO
+    # 2. Projetos (Planner) com PROGRESSO e Buckets GTD
     planner_res = requests.get(f"{GRAPH_BASE}/me/planner/plans", headers=headers)
-    plans = planner_res.json().get("value", [])[:10]
+    plans = planner_res.json().get("value", [])[:15]
     projects = []
+    planner_tasks_for_paper = {"projects": [], "waiting": []}
+    
     for plan in plans:
-        # Calcular progresso real das tarefas
         tasks_res = requests.get(f"{GRAPH_BASE}/planner/plans/{plan['id']}/tasks", headers=headers).json().get("value", [])
         total = len(tasks_res)
         done = sum(1 for t in tasks_res if t.get('percentComplete') == 100)
+        
+        # Buscar Buckets para filtrar tarefas do papel
+        buckets_res = requests.get(f"{GRAPH_BASE}/planner/plans/{plan['id']}/buckets", headers=headers).json().get("value", [])
+        bucket_map = {b['id']: b['name'].lower() for b in buckets_res}
+        
+        for task in tasks_res:
+            if task.get('percentComplete') == 100: continue
+            b_name = bucket_map.get(task.get('bucketId'), "")
+            if "proxima" in b_name or "próxima" in b_name:
+                planner_tasks_for_paper["projects"].append({"plan": plan['title'], "task": task['title']})
+            elif "delegado" in b_name:
+                planner_tasks_for_paper["waiting"].append({"plan": plan['title'], "task": task['title']})
+
         projects.append({
             "name": plan.get("title"), "id": plan.get("id"), 
             "progress": (done / total * 100) if total > 0 else 0,
@@ -170,6 +184,7 @@ def get_dashboard_data(token: str):
         "landscape": cal_res.json().get("value", []) if cal_res.status_code == 200 else [],
         "radar": projects,
         "contexts": context_data,
+        "planner_paper": planner_tasks_for_paper,
         "sync_time": datetime.now().strftime("%H:%M")
     }
 
@@ -287,24 +302,17 @@ async def handle_clarify_action(request: Request):
             move_outlook_email(token, item['email_id'], "@Ações")
             
     elif action_type == "project":
-        # Criar no Planner + Mover e-mail + Registrar no To Do de Projetos
+        # Criar no Planner + Mover e-mail
         payload = {"planId": dest['plan_id'], "bucketId": dest['bucket_id'], "title": item['title']}
         p_task = requests.post(f"{GRAPH_BASE}/planner/tasks", headers=headers, json=payload).json()
         
         if 'id' in p_task:
-            # Pasta correta no Outlook
-            folder = "@Aguardando Resposta" if "delegado" in dest.get('bucket_name', '').lower() else "@Ações"
+            b_name = dest.get('bucket_name', '').lower()
+            folder = "@Aguardando Resposta" if "delegado" in b_name else "@Ações"
             if item.get('email_id'): move_outlook_email(token, item['email_id'], folder)
             
-            # Registrar no To Do de controle
-            target_list_name = "Aguardando resposta" if folder == "@Aguardando Resposta" else "Projetos"
-            lists = requests.get(f"{GRAPH_BASE}/me/todo/lists", headers=headers).json().get("value", [])
-            target_id = next((l['id'] for l in lists if l['displayName'].lower() == target_list_name.lower()), None)
-            
-            if target_id:
-                new_t = requests.post(f"{GRAPH_BASE}/me/todo/lists/{target_id}/tasks", headers=headers, json={"title": item['title']}).json()
-                planner_url = f"https://planner.cloud.microsoft/tasks/{p_task['id']}"
-                requests.post(f"{GRAPH_BASE}/me/todo/lists/{target_id}/tasks/{new_t['id']}/linkedResources", headers=headers, json={"webUrl": planner_url, "displayName": "Ver no Planner"})
+            # Registrar no To Do para marcar como processado
+            if item.get('id') and item.get('list_id'):
                 requests.delete(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers)
 
     elif action_type == "complete":
@@ -337,8 +345,9 @@ async def create_new_project(request: Request):
     # Criar Plano
     plan = requests.post(f"{GRAPH_BASE}/planner/plans", headers=headers, json={"owner": groups[0]['id'], "title": title}).json()
     if 'id' in plan:
-        # Criar Buckets
-        for b in ["Backlog", "Proxima Ação", "Delegado"]:
+        # Criar os 4 Buckets padrão (GTD FECD)
+        buckets = ["Planejamento", "Proxima Ação", "Delegado", "Arquivo"]
+        for b in buckets:
             requests.post(f"{GRAPH_BASE}/planner/buckets", headers=headers, json={"name": b, "planId": plan['id']})
         return {"status": "success", "plan_id": plan['id']}
     
