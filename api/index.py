@@ -183,19 +183,22 @@ def get_dashboard_data(token: str):
             "tasks_count": total
         })
     
-    # 3. Contextos (Suporte a nomes legados e @)
+    # 3. Contextos (Mostrar TODAS as listas com tarefas pendentes)
     todo_lists = requests.get(f"{GRAPH_BASE}/me/todo/lists", headers=headers).json().get("value", [])
-    LEGACY_CTX = ["Escritório", "Computador", "Telefone", "Na Rua", "Assuntos a Tratar"]
     context_data = {}
-    today_date = datetime.now().strftime("%Y-%m-%d")
+    
+    today_dt = datetime.now()
+    today_str = today_dt.strftime("%Y-%m-%d")
     for lst in todo_lists:
         name = lst.get("displayName")
-        if name.startswith("@") or name in LEGACY_CTX or name in ["In Tray", "Tarefas"]:
-            tasks = requests.get(f"{GRAPH_BASE}/me/todo/lists/{lst['id']}/tasks", headers=headers, params={"$filter": "status ne 'completed'", "$top": 20}).json().get("value", [])
+        # Buscamos até 100 tarefas para ter certeza que pegamos tudo
+        tasks = requests.get(f"{GRAPH_BASE}/me/todo/lists/{lst['id']}/tasks", headers=headers, params={"$filter": "status ne 'completed'", "$top": 100}).json().get("value", [])
+        
+        if tasks: # Só adicionamos a lista se ela tiver tarefas pendentes
             context_data[name] = []
             for t in tasks:
                 due = t.get("dueDateTime", {}).get("dateTime", "")
-                is_today = today_date in due if due else False
+                is_today = due.split('T')[0] <= today_str if due else False
                 context_data[name].append({"title": t.get("title"), "is_today": is_today})
 
     return {
