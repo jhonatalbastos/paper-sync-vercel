@@ -15,8 +15,9 @@ load_dotenv()
 
 # Importar lógica modular existente (agora no diretório api/)
 try:
-    from .pdf_utils import generate_gtd_page
-    from .vision_utils import process_scan, get_unprocessed_inbox_notes, mark_note_as_processed, save_page_snapshot
+    from api.pdf_utils import generate_gtd_page
+    from api.vision_utils import process_scan, get_unprocessed_inbox_notes, mark_note_as_processed, save_page_snapshot
+    from api.groq_utils import process_scan_with_ai, get_weekly_review_guidance
 except ImportError:
     import pdf_utils
     import vision_utils
@@ -394,11 +395,25 @@ async def generate_pdf(request: Request):
 
 @app.post("/api/upload")
 async def upload_scan(request: Request):
-    # Em uma implementação real, leríamos os bytes do arquivo aqui
-    # Para o MVP, usamos a lógica definida em vision_utils
+    # Processamento base (OCR/QR)
     res = process_scan(None)
+    
+    # Idea 1: Refinando com IA (Otimização de Notas)
+    # Aqui a IA "lê" melhor o que o OCR básico pegou
+    raw_notes = ", ".join(res.get("inbox_notes", []))
+    refined_notes = process_scan_with_ai(raw_notes)
+    res["inbox_notes"] = refined_notes
+    
     return {
         "status": "success", 
-        "message": f"Scan processado! ID: {res['page_id']}. {len(res['inbox_notes'])} notas capturadas.",
+        "message": f"IA ativada! Scan processado com sucesso. {len(res['inbox_notes'])} notas capturadas.",
         "data": res
     }
+
+@app.get("/api/weekly-review/{step}")
+async def weekly_review(step: int):
+    # Idea 5: Coach da Revisão Semanal (Incentivo por IA)
+    guidance = get_weekly_review_guidance(step)
+    if not guidance:
+        return {"done": True, "message": "Parabéns, Jhonata! Sua mente está limpa e seus projetos estão em dia."}
+    return guidance

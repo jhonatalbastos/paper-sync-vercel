@@ -1,3 +1,4 @@
+groq
 requests
 reportlab
 qrcode[pil]

@@ -43,6 +43,8 @@ export default function Dashboard() {
   const [hiddenProjects, setHiddenProjects] = useState<string[]>([]);
   const [isManagingVisibility, setIsManagingVisibility] = useState(false);
   const [printSelections, setPrintSelections] = useState<any>(null);
+  const [weeklyReviewStep, setWeeklyReviewStep] = useState(0);
+  const [weeklyReviewData, setWeeklyReviewData] = useState<any>(null);
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({
     "Flagged Emails": true,
     "E-mails Sinalizados": true
@@ -135,6 +137,16 @@ export default function Dashboard() {
       const result = await res.json();
       setClarifyData(result);
     } catch (error) { console.error("Clarify fetch error:", error); }
+  };
+
+  const fetchWeeklyReview = async (step: number) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/weekly-review/${step}`);
+      const result = await res.json();
+      setWeeklyReviewData(result);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   const transformEmailToTask = async (emailId: string, subject: string) => {
@@ -716,8 +728,11 @@ export default function Dashboard() {
                 {printSelections && (
                   <>
                     <div className="fecd-card">
-                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🕒 Calendário (Paisagem Rígida)</h3>
-                      {printSelections.calendar.map((ev: any, i: number) => (
+                      <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse("print_calendar")}>
+                        <span>🕒 Calendário (Paisagem Rígida)</span>
+                        <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{collapsedSections["print_calendar"] ? "▶️" : "▼"}</span>
+                      </h3>
+                      {!collapsedSections["print_calendar"] && printSelections.calendar.map((ev: any, i: number) => (
                         <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
                           <input type="checkbox" checked={ev.selected} onChange={(e) => {
                             const newer = [...printSelections.calendar];
@@ -734,37 +749,46 @@ export default function Dashboard() {
                       ))}
                     </div>
 
-                    {Object.entries(printSelections.tasks).map(([ctx, tasks]: [string, any], i: number) => (
-                      <div key={i} className="fecd-card">
-                        <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
-                        {tasks.map((t: any, idx: number) => (
-                          <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                            <input type="checkbox" checked={t.selected} onChange={(e) => {
-                              const newer = { ...printSelections.tasks };
-                              newer[ctx][idx].selected = e.target.checked;
-                              setPrintSelections({ ...printSelections, tasks: newer });
-                            }} />
-                            <input className="m3-input" style={{ flex: 1, height: '26px', fontSize: '0.75rem' }} value={t.text} onChange={(e) => {
-                              const newer = { ...printSelections.tasks };
-                              newer[ctx][idx].text = e.target.value;
-                              setPrintSelections({ ...printSelections, tasks: newer });
-                            }} />
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', opacity: 0.7, cursor: 'pointer' }}>
-                              <input type="checkbox" checked={t.show_notes} onChange={(e) => {
+                    {Object.entries(printSelections.tasks).map(([ctx, tasks]: [string, any], i: number) => {
+                      const collapseKey = `print_ctx_${ctx}`;
+                      return (
+                        <div key={i} className="fecd-card">
+                          <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse(collapseKey)}>
+                            <span>🚀 {ctx}</span>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{collapsedSections[collapseKey] ? "▶️" : "▼"}</span>
+                          </h3>
+                          {!collapsedSections[collapseKey] && tasks.map((t: any, idx: number) => (
+                            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                              <input type="checkbox" checked={t.selected} onChange={(e) => {
                                 const newer = { ...printSelections.tasks };
-                                newer[ctx][idx].show_notes = e.target.checked;
+                                newer[ctx][idx].selected = e.target.checked;
                                 setPrintSelections({ ...printSelections, tasks: newer });
                               }} />
-                              Notas
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
+                              <input className="m3-input" style={{ flex: 1, height: '26px', fontSize: '0.75rem' }} value={t.text} onChange={(e) => {
+                                const newer = { ...printSelections.tasks };
+                                newer[ctx][idx].text = e.target.value;
+                                setPrintSelections({ ...printSelections, tasks: newer });
+                              }} />
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', opacity: 0.7, cursor: 'pointer' }}>
+                                <input type="checkbox" checked={t.show_notes} onChange={(e) => {
+                                  const newer = { ...printSelections.tasks };
+                                  newer[ctx][idx].show_notes = e.target.checked;
+                                  setPrintSelections({ ...printSelections, tasks: newer });
+                                }} />
+                                Notas
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
 
                     <div className="fecd-card">
-                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🎯 Projetos e Delegação (Prioritários)</h3>
-                      {[...printSelections.projects, ...printSelections.waiting].map((p: any, i: number) => (
+                      <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse("print_projects")}>
+                        <span>🎯 Projetos e Delegação (Prioritários)</span>
+                        <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{collapsedSections["print_projects"] ? "▶️" : "▼"}</span>
+                      </h3>
+                      {!collapsedSections["print_projects"] && [...printSelections.projects, ...printSelections.waiting].map((p: any, i: number) => (
                         <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
                           <input type="checkbox" checked={p.selected} onChange={(e) => {
                             const isProject = i < printSelections.projects.length;
@@ -851,6 +875,72 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        );
+      case "Revisão":
+        return (
+          <div className="tab-content" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <header className="header-row" style={{ textAlign: 'center' }}>
+              <div>
+                <h2 className="page-title">✨ Coach de Revisão Semanal</h2>
+                <p className="page-subtitle">A hora sagrada do GTD: Inteligência Artificial te guiando.</p>
+              </div>
+            </header>
+
+            {weeklyReviewData?.done ? (
+              <div className="fecd-card" style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--m3-primary-container)' }}>
+                <span style={{ fontSize: '4rem' }}>🏆</span>
+                <h3 style={{ marginTop: '20px', color: 'var(--m3-on-primary-container)' }}>Mente como Água!</h3>
+                <p style={{ opacity: 0.8 }}>{weeklyReviewData.message}</p>
+                <button className="btn-primary" style={{ marginTop: '30px' }} onClick={() => setActiveTab("Dashboard")}>Voltar ao Início</button>
+              </div>
+            ) : (
+              <div className="fecd-card" style={{ padding: '0', overflow: 'hidden' }}>
+                <div style={{ background: 'var(--m3-primary)', color: 'white', padding: '24px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{weeklyReviewData?.title || "Carregando passo..."}</h3>
+                  <p style={{ opacity: 0.8, fontSize: '0.8rem', marginTop: '4px' }}>Passo {weeklyReviewStep + 1} de 6</p>
+                </div>
+
+                <div style={{ padding: '24px' }}>
+                  <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: 'var(--m3-on-surface)' }}>{weeklyReviewData?.guidance}</p>
+
+                  {weeklyReviewData?.ai_tip && (
+                    <div style={{ marginTop: '30px', padding: '20px', background: 'var(--m3-surface-2)', borderRadius: '12px', border: '1px dashed var(--m3-primary)' }}>
+                      <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--m3-primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>💡 Tip do Coach IA (GROQ)</span>
+                      </p>
+                      <p style={{ fontSize: '0.85rem', fontStyle: 'italic', opacity: 0.9 }}>"{weeklyReviewData.ai_tip}"</p>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '40px', display: 'flex', gap: '12px' }}>
+                    <button
+                      className="btn-primary"
+                      style={{ flex: 1, padding: '12px', height: 'auto', background: 'var(--m3-primary)', fontSize: '0.9rem' }}
+                      onClick={() => {
+                        const next = weeklyReviewStep + 1;
+                        setWeeklyReviewStep(next);
+                        fetchWeeklyReview(next);
+                      }}
+                    >
+                      Concluído, Próximo Passo ➔
+                    </button>
+                    {weeklyReviewStep > 0 && (
+                      <button
+                        style={{ background: 'none', border: 'none', color: 'var(--m3-outline)', cursor: 'pointer', fontSize: '0.8rem' }}
+                        onClick={() => {
+                          const prev = weeklyReviewStep - 1;
+                          setWeeklyReviewStep(prev);
+                          fetchWeeklyReview(prev);
+                        }}
+                      >
+                        Reiniciar Passo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       case "Upload":
@@ -1059,13 +1149,14 @@ export default function Dashboard() {
 
               {/* CONTEXTOS DINÂMICOS DO TO DO */}
               {Object.entries(data.contexts).map(([ctx, tasks], i) => {
+                const targetId = contextNames[ctx] || ctx;
                 const displayName = contextNames[ctx] || ctx;
                 const icon = contextIcons[displayName] || contextIcons[ctx] || "📝";
-                const isCollapsed = collapsedSections[ctx] || collapsedSections[displayName];
+                const isCollapsed = collapsedSections[targetId];
 
                 return (
                   <div key={i} className="fecd-card">
-                    <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse(ctx)}>
+                    <h3 className="card-title" style={{ fontSize: '0.9rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => toggleCollapse(targetId)}>
                       <span>{icon} {displayName}</span>
                       <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{isCollapsed ? "▶️" : "▼"}</span>
                     </h3>
@@ -1100,23 +1191,13 @@ export default function Dashboard() {
         </div>
 
         <nav className="nav-menu">
-          {[
-            { id: "Dashboard", label: "Dashboard", icon: "📊" },
-            { id: "Esclarecer", label: "Esclarecer", icon: "🧠" },
-            { id: "Projetos", label: "Radar", icon: "🤝" },
-            { id: "Impressao", label: "Mapa", icon: "🖨️" },
-            { id: "Upload", label: "Scan", icon: "📸" },
-            { id: "Guia", label: "Guia", icon: "📖" }
-          ].map((item) => (
-            <div
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-            >
-              <span style={{ fontSize: '1rem' }}>{item.icon}</span>
-              <p style={{ margin: 0 }}>{item.label}</p>
-            </div>
-          ))}
+          <div className={`nav-item ${activeTab === 'Dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('Dashboard')}>📊 Dashboard</div>
+          <div className={`nav-item ${activeTab === 'Esclarecer' ? 'active' : ''}`} onClick={() => setActiveTab('Esclarecer')}>🎯 Esclarecer</div>
+          <div className={`nav-item ${activeTab === 'Radar' ? 'active' : ''}`} onClick={() => setActiveTab('Radar')}>🤝 Radar</div>
+          <div className={`nav-item ${activeTab === "Revisão" ? 'active' : ''}`} onClick={() => { setActiveTab("Revisão"); fetchWeeklyReview(0); }}>✨ Revisão</div>
+          <div className={`nav-item ${activeTab === 'Mapa' ? 'active' : ''}`} onClick={() => setActiveTab('Mapa')}>🗺️ Mapa</div>
+          <div className={`nav-item ${activeTab === 'Upload' ? 'active' : ''}`} onClick={() => setActiveTab('Upload')}>📸 Scan</div>
+          <div className={`nav-item ${activeTab === 'Guia' ? 'active' : ''}`} onClick={() => setActiveTab('Guia')}>📖 Guia</div>
 
           <div className="nav-item" onClick={logout} style={{ marginTop: 'auto' }}>
             <span style={{ fontSize: '1rem' }}>🚪</span>
