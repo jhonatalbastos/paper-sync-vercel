@@ -316,11 +316,15 @@ async def handle_clarify_action(request: Request):
                 requests.delete(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers)
 
     elif action_type == "complete":
-        # Marcar como concluído no To Do e mover e-mail para Concluídos
+        # Marcar como concluído no To Do, completar flag no Outlook e mover para Arquivo Morto
         if item.get('id') and item.get('list_id'):
             requests.patch(f"{GRAPH_BASE}/me/todo/lists/{item['list_id']}/tasks/{item['id']}", headers=headers, json={"status": "completed"})
         if item.get('email_id'):
-            move_outlook_email(token, item['email_id'], "@Concluídos")
+            # Marcar flag como completa
+            patch_url = f"{GRAPH_BASE}/me/messages/{item['email_id']}"
+            requests.patch(patch_url, headers=headers, json={"flag": {"flagStatus": "complete"}})
+            # Mover para Arquivo Morto
+            move_outlook_email(token, item['email_id'], "Arquivo Morto")
 
     elif action_type == "trash":
         # Deletar no To Do e mover e-mail para Itens Deletados
