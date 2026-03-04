@@ -903,71 +903,51 @@ export default function Dashboard() {
       default:
         return (
           <>
-            <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+            <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h1 className="page-title" style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em' }}>Bem-vindo, Jhonata</h1>
-                <p className="page-subtitle" style={{ fontSize: '0.9rem', fontWeight: 500 }}>Sincronizado às {data.sync_time}. Seu ecossistema está pronto.</p>
+                <h2 className="page-title" style={{ fontSize: '1.5rem' }}>Bem-vindo, Jhonata</h2>
+                <p className="page-subtitle">Sincronizado às {data.sync_time}.</p>
               </div>
-              <button
-                className="btn-primary"
-                onClick={() => fetchDashboardData(localStorage.getItem("ms_token"))}
-                style={{ height: '44px', borderRadius: '12px', padding: '0 24px', fontWeight: 600 }}
-              >
-                🔄 Atualizar Sistema
+              <button className="btn-primary" onClick={() => fetchDashboardData(localStorage.getItem("ms_token"))}>
+                🔄 Atualizar
               </button>
             </header>
 
-            <div className="bento-grid">
-              {/* BLOCO: CALENDÁRIO (PAISAGEM RÍGIDA) */}
-              <div className="bento-card" style={{ gridColumn: 'span 4', gridRow: 'span 3' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '1.2rem' }}>🕒</span> Paisagem Rígida
-                </h3>
-                <div className="list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="dashboard-grid">
+              <div className="fecd-card">
+                <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🕒 Paisagem Rígida (Hoje)</h3>
+                <div className="list">
                   {data.landscape.length > 0 ? data.landscape.map((ev, i) => (
-                    <div key={i} className="list-item" style={{ padding: '10px', background: 'rgba(0,122,255,0.05)', borderRadius: '12px', border: '1px solid rgba(0,122,255,0.08)' }}>
-                      <span style={{ fontWeight: 800, color: 'var(--bento-accent)', minWidth: '50px', display: 'block', fontSize: '0.7rem', textTransform: 'uppercase' }}>
+                    <div key={i} className="list-item" style={{ padding: '4px 0' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--m3-primary)', minWidth: '50px', fontSize: '0.75rem' }}>
                         {new Date(ev.start.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--bento-text-primary)' }}>{ev.subject}</span>
+                      <span style={{ fontSize: '0.85rem' }}>{ev.subject}</span>
                     </div>
-                  )) : <p style={{ fontSize: '0.85rem', color: 'var(--bento-text-secondary)' }}>Sem compromissos hoje.</p>}
+                  )) : <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Sem compromissos hoje.</p>}
                 </div>
               </div>
 
-              {/* BLOCO: RADAR DE PROJETOS */}
-              <div className="bento-card" style={{ gridColumn: 'span 8', gridRow: 'span 2' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '1.2rem' }}>🎯</span> Radar de Projetos
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                  {data.radar.filter((p: any) => !archivedProjects.includes(p.id) && !hiddenProjects.includes(p.id)).slice(0, 4).map((p: any, i: number) => (
-                    <div key={i} style={{ padding: '16px', background: 'var(--bento-bg)', borderRadius: '16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: 700 }}>{p.name}</span>
-                        <span style={{ fontWeight: 800, color: 'var(--bento-accent)' }}>{Math.round(p.progress)}%</span>
-                      </div>
-                      <div className="progress-bar-bg" style={{ height: '6px', borderRadius: '3px' }}>
-                        <div className="progress-bar-fill" style={{ width: `${p.progress}%`, background: 'var(--bento-accent)', borderRadius: '3px' }}></div>
-                      </div>
+              <div className="fecd-card">
+                <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🤝 Radar de Projetos</h3>
+                {data.radar.filter((p: any) => !archivedProjects.includes(p.id) && !hiddenProjects.includes(p.id)).slice(0, 4).map((p: any, i: number) => (
+                  <div key={i} style={{ marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px' }}>
+                      <span>{p.name}</span>
+                      <span style={{ fontWeight: 600 }}>{Math.round(p.progress)}%</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${p.progress}%` }}></div></div>
+                  </div>
+                ))}
               </div>
 
-              {/* BLOCOS: CONTEXTOS DO TO DO */}
               {Object.entries(data.contexts).map(([ctx, tasks], i) => (
-                <div key={i} className="bento-card" style={{ gridColumn: 'span 4' }}>
-                  <h3 style={{ fontSize: '0.95rem', color: 'var(--bento-text-secondary)', fontWeight: 600 }}>🚀 {ctx}</h3>
-                  <div className="list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {tasks.slice(0, 4).map((t, idx) => (
-                      <div key={idx} style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--bento-text-primary)', display: 'flex', gap: '8px' }}>
-                        <span style={{ color: 'var(--bento-accent)' }}>•</span> {t}
-                      </div>
+                <div key={i} className="fecd-card">
+                  <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🚀 {ctx}</h3>
+                  <div className="list">
+                    {tasks.map((t, idx) => (
+                      <div key={idx} className="list-item" style={{ fontSize: '0.85rem', padding: '3px 0' }}>• {t}</div>
                     ))}
-                    {tasks.length > 4 && (
-                      <p style={{ fontSize: '0.75rem', color: 'var(--bento-accent)', fontWeight: 700, marginTop: '4px' }}>+ {tasks.length - 4} tarefas</p>
-                    )}
                   </div>
                 </div>
               ))}
