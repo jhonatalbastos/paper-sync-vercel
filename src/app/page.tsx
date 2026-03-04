@@ -468,6 +468,64 @@ export default function Dashboard() {
             </div>
           </div>
         );
+      case "Upload":
+        return (
+          <div className="tab-content">
+            <header className="header-row">
+              <div><h2 className="page-title">📸 Escaneamento</h2><p className="page-subtitle">Capture suas notas analógicas da folha A4.</p></div>
+            </header>
+            <div className="fecd-card" style={{ maxWidth: '500px', margin: '0 auto', textAlign: 'center' }}>
+              <div style={{ padding: '40px 20px', border: '2px dashed var(--m3-outline-variant)', borderRadius: '20px', marginBottom: '20px' }}>
+                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '16px' }}>📤</span>
+                <p style={{ fontWeight: 600, marginBottom: '8px' }}>Selecione o scan da sua folha</p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--m3-on-surface-variant)', marginBottom: '24px' }}>Formatos suportados: PNG, JPG, JPEG</p>
+                <input
+                  type="file"
+                  id="scan-upload"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setLoading(true);
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      try {
+                        const res = await fetch('/api/upload', {
+                          method: 'POST',
+                          body: formData
+                        });
+                        const result = await res.json();
+                        alert(result.message || "Folha processada com sucesso!");
+                        if (activeTab === "Upload") fetchClarifyData();
+                      } catch (err) {
+                        console.error(err);
+                        alert("Erro ao processar scan.");
+                      } finally {
+                        setLoading(false);
+                      }
+                    }
+                  }}
+                />
+                <button
+                  className="btn-primary"
+                  onClick={() => document.getElementById('scan-upload')?.click()}
+                  style={{ width: '200px', justifyContent: 'center' }}
+                >
+                  Selecionar Arquivo
+                </button>
+              </div>
+              <div style={{ textAlign: 'left', background: 'var(--m3-surface-2)', padding: '16px', borderRadius: '12px' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px', color: 'var(--m3-primary)' }}>Como funciona:</h4>
+                <ul style={{ fontSize: '0.75rem', color: 'var(--m3-on-surface-variant)', margin: 0, paddingLeft: '20px' }}>
+                  <li>Tire uma foto nítida da sua folha de tarefas.</li>
+                  <li>O sistema usará IA para ler suas marcações na "Caixa de Captura".</li>
+                  <li>As notas aparecerão automaticamente na aba <strong>Esclarecer</strong>.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
       default:
         return (
           <>
