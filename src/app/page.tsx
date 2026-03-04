@@ -35,6 +35,16 @@ export default function Dashboard() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [processedSession, setProcessedSession] = useState<any[]>([]);
   const [showProcessed, setShowProcessed] = useState(false);
+  const [archivedProjects, setArchivedProjects] = useState<string[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("archived_projects");
+    if (saved) setArchivedProjects(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("archived_projects", JSON.stringify(archivedProjects));
+  }, [archivedProjects]);
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
@@ -241,25 +251,25 @@ export default function Dashboard() {
     };
 
     return (
-      <div className="fecd-card" style={{ marginBottom: '12px', padding: '12px 16px', borderLeft: '3px solid var(--m3-primary)', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px' }}>
+      <div className="fecd-card compact-clarify-card" style={{ position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '8px', right: '12px', display: 'flex', gap: '6px' }}>
           <button onClick={() => handleAction('complete')} title="Concluir (2 min)" className="icon-btn" style={{ background: 'var(--m3-primary-container)', color: 'var(--m3-on-primary-container)', fontSize: '0.8rem' }}>✅</button>
           <button onClick={() => handleAction('trash')} title="Lixeira" className="icon-btn" style={{ background: '#ffebee', color: '#c62828', fontSize: '0.8rem' }}>🗑️</button>
         </div>
 
-        <div style={{ paddingRight: '100px' }}>
-          <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '2px', color: 'var(--m3-on-surface)' }}>{item.subject || item.text}</p>
+        <div style={{ paddingRight: '80px' }}>
+          <p style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--m3-on-surface)', lineHeight: 1.2 }}>{item.subject || item.text}</p>
           {item.body && (
             <button
               onClick={() => setIsViewing(!isViewing)}
-              style={{ fontSize: '0.7rem', color: 'var(--m3-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '8px', fontWeight: 500 }}
+              style={{ fontSize: '0.65rem', color: 'var(--m3-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '6px', fontWeight: 600 }}
             >
               {isViewing ? "🔼 Recolher conteúdo" : "🔽 Espiar e-mail"}
             </button>
           )}
           {isViewing && item.body && (
             <div
-              style={{ fontSize: '0.8rem', background: 'var(--m3-surface-2)', padding: '10px', borderRadius: '8px', marginBottom: '12px', maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--m3-surface-variant)' }}
+              className="email-preview-container"
               dangerouslySetInnerHTML={{ __html: item.body.content }}
             />
           )}
@@ -424,33 +434,74 @@ export default function Dashboard() {
           </div>
         );
       case "Projetos":
+        const activeProjects = data.radar.filter((p: any) => !archivedProjects.includes(p.id));
+        const completedProjectsList = data.radar.filter((p: any) => archivedProjects.includes(p.id));
+
         return (
-          <div className="tab-content">
-            <header className="header-row">
-              <div><h2 className="page-title">🤝 Radar de Delegação</h2><p className="page-subtitle">Acompanhamento e status dos Projetos no Planner.</p></div>
-              <button className="btn-primary" onClick={() => setActiveTab("Dashboard")}>+ Novo Projeto</button>
+          <div className="tab-content" style={{ maxWidth: '1100px', margin: '0 auto' }}>
+            <header className="header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 className="page-title">🤝 Radar de Delegação</h2>
+                <p className="page-subtitle">Acompanhamento e status dos Projetos no Planner.</p>
+              </div>
+              <button className="btn-primary" onClick={() => setActiveTab("Esclarecer")}>+ Vincular Projeto</button>
             </header>
-            <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', flexDirection: 'unset' }}>
-              {data.radar.map((p: any, i: number) => (
-                <div key={i} className="fecd-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <h3 className="card-title" style={{ margin: 0, fontSize: '1rem' }}>{p.name}</h3>
-                    <span className="badge">{Math.round(p.progress)}%</span>
+
+            <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {activeProjects.map((p: any, i: number) => (
+                <div key={i} className="fecd-card" style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'flex-start' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, flex: 1, paddingRight: '10px' }}>{p.name}</h3>
+                    <span className="badge" style={{ background: p.progress === 100 ? '#e8f5e9' : 'var(--m3-secondary-container)', color: p.progress === 100 ? '#2e7d32' : 'var(--m3-on-secondary-container)' }}>
+                      {Math.round(p.progress)}%
+                    </span>
                   </div>
-                  <div className="progress-bar-bg" style={{ marginBottom: '12px' }}>
-                    <div className="progress-bar-fill" style={{ width: `${p.progress}%` }}></div>
+                  <div className="progress-bar-bg" style={{ marginBottom: '16px' }}>
+                    <div className="progress-bar-fill" style={{ width: `${p.progress}%`, background: p.progress === 100 ? '#4caf50' : 'var(--m3-primary)' }}></div>
                   </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--m3-on-surface-variant)' }}>{p.tasks_count} tarefas identificadas.</p>
-                  <button
-                    className="btn-primary"
-                    style={{ width: '100%', marginTop: '12px', background: 'var(--m3-surface-variant)', color: 'var(--m3-on-surface)' }}
-                    onClick={() => window.open(`https://planner.cloud.microsoft/home/planner/projects/${p.id}`, '_blank')}
-                  >
-                    Abrir no Planner
-                  </button>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      className="btn-primary"
+                      style={{ flex: 2, background: 'var(--m3-surface-variant)', color: 'var(--m3-on-surface)' }}
+                      onClick={() => window.open(`https://planner.cloud.microsoft/home/planner/projects/${p.id}`, '_blank')}
+                    >
+                      Abrir no Planner
+                    </button>
+                    {p.progress === 100 && (
+                      <button
+                        className="btn-primary"
+                        style={{ flex: 1, background: '#e8f5e9', color: '#2e7d32' }}
+                        onClick={() => setArchivedProjects([...archivedProjects, p.id])}
+                      >
+                        ✅ Encerrar
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
+
+            {completedProjectsList.length > 0 && (
+              <div style={{ marginTop: '48px' }}>
+                <h3 className="card-title" style={{ opacity: 0.6, fontSize: '0.9rem' }}>📂 Projetos Encerrados</h3>
+                <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', opacity: 0.6 }}>
+                  {completedProjectsList.map((p: any, i: number) => (
+                    <div key={`arch-${i}`} className="fecd-card" style={{ padding: '12px', background: 'var(--m3-surface-2)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{p.name}</span>
+                        <button
+                          style={{ background: 'none', border: 'none', color: 'var(--m3-primary)', fontSize: '0.7rem', cursor: 'pointer' }}
+                          onClick={() => setArchivedProjects(archivedProjects.filter(id => id !== p.id))}
+                        >
+                          Reativar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
       case "Impressao":

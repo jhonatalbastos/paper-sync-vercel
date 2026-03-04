@@ -358,3 +358,34 @@ body {
   width: 90%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
+
+/* --- ESTILOS ULTRA COMPACTOS (GTD NEXT GEN) --- */
+.email-preview-container {
+  font-size: 0.8rem;
+  background: white !important;
+  color: #202124 !important;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--m3-surface-variant);
+}
+
+.email-preview-container * {
+  max-width: 100% !important;
+  height: auto !important;
+  color: inherit !important;
+}
+
+.email-preview-container img {
+  max-width: 200px !important;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.compact-clarify-card {
+  padding: 10px 14px !important;
+  margin-bottom: 8px !important;
+  border-left: none !important;
+}
