@@ -145,7 +145,8 @@ def get_dashboard_data(token: str):
     planner_res = requests.get(f"{GRAPH_BASE}/me/planner/plans", headers=headers)
     plans = planner_res.json().get("value", [])[:15]
     projects = []
-    planner_tasks_for_paper = {"projects": [], "waiting": []}
+    # planner_paper será expandido para ter todas as tarefas, mas com flags de prioridade
+    planner_tasks_for_paper = {"projects": [], "waiting": [], "all_by_plan": {}}
     
     for plan in plans:
         tasks_res = requests.get(f"{GRAPH_BASE}/planner/plans/{plan['id']}/tasks", headers=headers).json().get("value", [])
@@ -154,15 +155,27 @@ def get_dashboard_data(token: str):
         
         # Buscar Buckets para filtrar tarefas do papel
         buckets_res = requests.get(f"{GRAPH_BASE}/planner/plans/{plan['id']}/buckets", headers=headers).json().get("value", [])
-        bucket_map = {b['id']: b['name'].lower() for b in buckets_res}
+        bucket_map = {b['id']: b['name'] for b in buckets_res}
         
+        plan_all_tasks = {}
         for task in tasks_res:
             if task.get('percentComplete') == 100: continue
-            b_name = bucket_map.get(task.get('bucketId'), "")
-            if "proxima" in b_name or "próxima" in b_name:
-                planner_tasks_for_paper["projects"].append({"plan": plan['title'], "task": task['title']})
-            elif "delegado" in b_name:
-                planner_tasks_for_paper["waiting"].append({"plan": plan['title'], "task": task['title']})
+            b_name = bucket_map.get(task.get('bucketId'), "Sem Categoria")
+            b_name_lower = b_name.lower()
+            
+            task_info = {"plan": plan['title'], "task": task['title'], "bucket": b_name}
+            
+            # Prioritários (vão pré-marcados)
+            if "proxima" in b_name_lower or "próxima" in b_name_lower:
+                planner_tasks_for_paper["projects"].append(task_info)
+            elif "delegado" in b_name_lower:
+                planner_tasks_for_paper["waiting"].append(task_info)
+            
+            # Agrupamento para "todas as outras"
+            if b_name not in plan_all_tasks: plan_all_tasks[b_name] = []
+            plan_all_tasks[b_name].append(task['title'])
+
+        planner_tasks_for_paper["all_by_plan"][plan['title']] = plan_all_tasks
 
         projects.append({
             "name": plan.get("title"), "id": plan.get("id"), 
@@ -174,11 +187,16 @@ def get_dashboard_data(token: str):
     todo_lists = requests.get(f"{GRAPH_BASE}/me/todo/lists", headers=headers).json().get("value", [])
     LEGACY_CTX = ["Escritório", "Computador", "Telefone", "Na Rua", "Assuntos a Tratar"]
     context_data = {}
+    today_date = datetime.now().strftime("%Y-%m-%d")
     for lst in todo_lists:
         name = lst.get("displayName")
         if name.startswith("@") or name in LEGACY_CTX or name in ["In Tray", "Tarefas"]:
-            tasks = requests.get(f"{GRAPH_BASE}/me/todo/lists/{lst['id']}/tasks", headers=headers, params={"$filter": "status ne 'completed'", "$top": 10}).json().get("value", [])
-            context_data[name] = [t.get("title") for t in tasks]
+            tasks = requests.get(f"{GRAPH_BASE}/me/todo/lists/{lst['id']}/tasks", headers=headers, params={"$filter": "status ne 'completed'", "$top": 20}).json().get("value", [])
+            context_data[name] = []
+            for t in tasks:
+                due = t.get("dueDateTime", {}).get("dateTime", "")
+                is_today = today_date in due if due else False
+                context_data[name].append({"title": t.get("title"), "is_today": is_today})
 
     return {
         "landscape": cal_res.json().get("value", []) if cal_res.status_code == 200 else [],

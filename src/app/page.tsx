@@ -13,8 +13,8 @@ export default function Dashboard() {
   interface GTDData {
     landscape: any[];
     radar: any[];
-    contexts: { [key: string]: string[] };
-    planner_paper?: { projects: any[], waiting: any[] };
+    contexts: { [key: string]: any[] };
+    planner_paper?: { projects: any[], waiting: any[], all_by_plan: any };
     sync_time: string;
   }
 
@@ -27,7 +27,7 @@ export default function Dashboard() {
     landscape: [],
     radar: [],
     contexts: {},
-    planner_paper: { projects: [], waiting: [] },
+    planner_paper: { projects: [], waiting: [], all_by_plan: {} },
     sync_time: "--:--"
   });
 
@@ -617,11 +617,22 @@ export default function Dashboard() {
               subject: ev.subject
             })),
             tasks: Object.entries(data.contexts || {}).reduce((acc: any, [ctx, tasks]: [string, any]) => {
-              acc[ctx] = tasks.map((t: any) => ({ selected: true, text: t }));
+              acc[ctx] = tasks.map((t: any) => ({
+                selected: t.is_today, // Prioridade: data de hoje pré-marcada
+                text: t.title,
+                show_notes: false // Por padrão, notas desmarcadas
+              }));
               return acc;
             }, {}),
             projects: (data.planner_paper?.projects || []).map((p: any) => ({ selected: true, plan: p.plan, task: p.task })),
-            waiting: (data.planner_paper?.waiting || []).map((p: any) => ({ selected: true, plan: p.plan, task: p.task }))
+            waiting: (data.planner_paper?.waiting || []).map((p: any) => ({ selected: true, plan: p.plan, task: p.task })),
+            all_other_planner: Object.entries(data.planner_paper?.all_by_plan || {}).reduce((acc: any, [plan, buckets]: [string, any]) => {
+              acc[plan] = Object.entries(buckets).reduce((bAcc: any, [bucket, tasks]: [string, any]) => {
+                bAcc[bucket] = tasks.map((t: any) => ({ selected: false, text: t }));
+                return bAcc;
+              }, {});
+              return acc;
+            }, {})
           };
           setPrintSelections(initial);
         };
@@ -641,13 +652,18 @@ export default function Dashboard() {
                   const final = {
                     calendar: printSelections.calendar.filter((c: any) => c.selected).map((c: any) => ({ time: c.time, subject: c.subject })),
                     tasks: Object.entries(printSelections.tasks).reduce((acc: any, [ctx, tasks]: [string, any]) => {
-                      const sel = tasks.filter((t: any) => t.selected).map((t: any) => t.text);
+                      const sel = tasks.filter((t: any) => t.selected).map((t: any) => ({ text: t.text, show_notes: t.show_notes }));
                       if (sel.length > 0) acc[ctx] = sel;
                       return acc;
                     }, {}),
                     waiting: [
                       ...printSelections.projects.filter((p: any) => p.selected).map((p: any) => ({ plan: p.plan, task: p.task, bucket: "Projeto" })),
-                      ...printSelections.waiting.filter((p: any) => p.selected).map((p: any) => ({ plan: p.plan, task: p.task, bucket: "Delegado" }))
+                      ...printSelections.waiting.filter((p: any) => p.selected).map((p: any) => ({ plan: p.plan, task: p.task, bucket: "Delegado" })),
+                      ...Object.entries(printSelections.all_other_planner).flatMap(([plan, buckets]: [string, any]) =>
+                        Object.entries(buckets).flatMap(([bucket, tasks]: [string, any]) =>
+                          tasks.filter((t: any) => t.selected).map((t: any) => ({ plan, task: t.text, bucket }))
+                        )
+                      )
                     ]
                   };
                   generatePDF(final);
@@ -696,13 +712,21 @@ export default function Dashboard() {
                               newer[ctx][idx].text = e.target.value;
                               setPrintSelections({ ...printSelections, tasks: newer });
                             }} />
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', opacity: 0.7, cursor: 'pointer' }}>
+                              <input type="checkbox" checked={t.show_notes} onChange={(e) => {
+                                const newer = { ...printSelections.tasks };
+                                newer[ctx][idx].show_notes = e.target.checked;
+                                setPrintSelections({ ...printSelections, tasks: newer });
+                              }} />
+                              Notas
+                            </label>
                           </div>
                         ))}
                       </div>
                     ))}
 
                     <div className="fecd-card">
-                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🎯 Projetos e Delegação</h3>
+                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🎯 Projetos e Delegação (Prioritários)</h3>
                       {[...printSelections.projects, ...printSelections.waiting].map((p: any, i: number) => (
                         <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
                           <input type="checkbox" checked={p.selected} onChange={(e) => {
@@ -720,6 +744,30 @@ export default function Dashboard() {
                           <div style={{ flex: 1 }}>
                             <input className="m3-input" style={{ width: '100%', height: '26px', fontSize: '0.75rem' }} value={`${p.plan}: ${p.task}`} readOnly />
                           </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="fecd-card">
+                      <h3 className="card-title" style={{ fontSize: '0.9rem' }}>📁 Outras Tarefas do Planner</h3>
+                      {Object.entries(printSelections.all_other_planner).map(([plan, buckets]: [string, any]) => (
+                        <div key={plan} style={{ marginBottom: '16px' }}>
+                          <h4 style={{ fontSize: '0.75rem', fontWeight: 700, opacity: 0.6, marginBottom: '8px' }}>{plan}</h4>
+                          {Object.entries(buckets).map(([bucket, tasks]: [string, any]) => (
+                            <div key={bucket} style={{ paddingLeft: '8px', borderLeft: '2px solid var(--m3-surface-variant)', marginBottom: '8px' }}>
+                              <p style={{ fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>{bucket}</p>
+                              {tasks.map((t: any, idx: number) => (
+                                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                                  <input type="checkbox" checked={t.selected} onChange={(e) => {
+                                    const newer = { ...printSelections.all_other_planner };
+                                    newer[plan][bucket][idx].selected = e.target.checked;
+                                    setPrintSelections({ ...printSelections, all_other_planner: newer });
+                                  }} />
+                                  <span style={{ fontSize: '0.75rem', opacity: t.selected ? 1 : 0.6 }}>{t.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
@@ -763,16 +811,18 @@ export default function Dashboard() {
 
                     <div className="preview-section">
                       <div className="preview-section-title">🎯 Projetos e Radar</div>
-                      {printSelections.projects.filter((p: any) => p.selected).map((p: any, i: number) => (
-                        <div key={i} className="preview-list-item">
+                      {[
+                        ...printSelections.projects.filter((p: any) => p.selected),
+                        ...printSelections.waiting.filter((p: any) => p.selected),
+                        ...Object.entries(printSelections.all_other_planner).flatMap(([plan, buckets]: [string, any]) =>
+                          Object.entries(buckets).flatMap(([bucket, tasks]: [string, any]) =>
+                            tasks.filter((t: any) => t.selected).map((t: any) => ({ plan, task: t.text, bucket }))
+                          )
+                        )
+                      ].map((p: any, i: number) => (
+                        <div key={i} className="preview-list-item" style={{ fontStyle: p.bucket === 'Delegado' ? 'italic' : 'normal' }}>
                           <div className="preview-checkbox-box"></div>
                           <span>[{p.plan}] {p.task}</span>
-                        </div>
-                      ))}
-                      {printSelections.waiting.filter((p: any) => p.selected).map((p: any, i: number) => (
-                        <div key={i} className="preview-list-item" style={{ fontStyle: 'italic' }}>
-                          <div className="preview-checkbox-box"></div>
-                          <span>Atratar: {p.task} ({p.plan})</span>
                         </div>
                       ))}
                     </div>
