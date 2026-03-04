@@ -722,7 +722,7 @@ export default function Dashboard() {
 
               <div className="fecd-card">
                 <h3 className="card-title" style={{ fontSize: '0.9rem' }}>🤝 Radar de Projetos</h3>
-                {data.radar.slice(0, 4).map((p: any, i: number) => (
+                {data.radar.filter((p: any) => !archivedProjects.includes(p.id)).slice(0, 4).map((p: any, i: number) => (
                   <div key={i} style={{ marginBottom: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px' }}>
                       <span>{p.name}</span>
