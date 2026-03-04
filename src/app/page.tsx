@@ -266,6 +266,7 @@ export default function Dashboard() {
     const [newProjectName, setNewProjectName] = useState("");
     const [refCategory, setRefCategory] = useState("Geral");
     const [lastCreatedUrl, setLastCreatedUrl] = useState<string | null>(null);
+    const [actionStatus, setActionStatus] = useState<string | null>(null);
 
     const fetchBuckets = async (planId: string) => {
       const token = localStorage.getItem("ms_token");
@@ -504,8 +505,9 @@ export default function Dashboard() {
                 style={{ height: '24px', padding: '0 8px', fontSize: '0.6rem', background: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9' }}
                 onClick={async () => {
                   setLoadingForm(true);
+                  setActionStatus(" OneDrive: Buscando pastas...");
                   try {
-                    await fetch('/api/clarify/reference', {
+                    const res = await fetch('/api/clarify/reference', {
                       method: 'POST',
                       body: JSON.stringify({
                         token: localStorage.getItem("ms_token"),
@@ -514,9 +516,14 @@ export default function Dashboard() {
                         category: refCategory
                       })
                     });
-                    setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString() }, ...prev]);
+                    const result = await res.json();
+                    if (result.url) setLastCreatedUrl(result.url);
+                    setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString(), target: result.message || 'OneDrive' }, ...prev]);
                     fetchClarifyData();
-                  } finally { setLoadingForm(false); }
+                  } finally {
+                    setLoadingForm(false);
+                    setActionStatus(null);
+                  }
                 }}
               >
                 ☁️ OneDrive
@@ -528,6 +535,7 @@ export default function Dashboard() {
                 style={{ height: '24px', padding: '0 8px', fontSize: '0.6rem', background: '#f3e5f5', color: '#7b1fa2', border: '1px solid #ce93d8' }}
                 onClick={async () => {
                   setLoadingForm(true);
+                  setActionStatus(" OneNote: IA Categorizando...");
                   try {
                     const res = await fetch('/api/clarify/reference', {
                       method: 'POST',
@@ -545,9 +553,12 @@ export default function Dashboard() {
                     });
                     const resData = await res.json();
                     if (resData.url) setLastCreatedUrl(resData.url);
-                    setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString() }, ...prev]);
+                    setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString(), target: 'OneNote' }, ...prev]);
                     fetchClarifyData();
-                  } finally { setLoadingForm(false); }
+                  } finally {
+                    setLoadingForm(false);
+                    setActionStatus(null);
+                  }
                 }}
               >
                 📓 OneNote
@@ -580,7 +591,16 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {lastCreatedUrl && (
+        {loadingForm && (
+          <div style={{ marginTop: '8px', padding: '6px', background: 'var(--m3-surface-2)', borderRadius: '8px', border: '1px solid var(--m3-outline)' }}>
+            <p style={{ fontSize: '0.65rem', margin: 0, color: 'var(--m3-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="spinner-small" style={{ width: '12px', height: '12px', border: '2px solid var(--m3-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></span>
+              {actionStatus || "Processando..."}
+            </p>
+          </div>
+        )}
+
+        {lastCreatedUrl && !loadingForm && (
           <div style={{ marginTop: '8px', padding: '8px', background: '#e8f5e9', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.65rem', color: '#2e7d32', fontWeight: 600 }}>✅ Arquivado com sucesso!</span>
             <a href={lastCreatedUrl} target="_blank" rel="noreferrer" style={{ fontSize: '0.65rem', color: '#1b5e20', fontWeight: 900, textDecoration: 'underline' }}>Abrir no OneNote ↗️</a>
@@ -683,7 +703,10 @@ export default function Dashboard() {
                   <h3 style={{ fontSize: '0.8rem', marginBottom: '8px' }}>✅ Processados</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {processedSession.map((item, i) => (
-                      <span key={`p-${i}`} style={{ fontSize: '0.75rem', background: 'var(--m3-surface-1)', padding: '2px 8px', borderRadius: '4px' }}>{item.subject || item.text}</span>
+                      <div key={`p-${i}`} style={{ fontSize: '0.7rem', background: 'var(--m3-surface-1)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--m3-outline)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 600 }}>{item.subject || item.text}</span>
+                        <span style={{ opacity: 0.6 }}>➔ {item.target || "Processado"}</span>
+                      </div>
                     ))}
                   </div>
                 </div>

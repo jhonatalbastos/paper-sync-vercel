@@ -138,19 +138,28 @@ def move_outlook_email(token, message_id, folder_name):
 
 def get_or_create_drive_folder(token, folder_path):
     headers = {"Authorization": f"Bearer {token}"}
+    # Tenta obter a pasta diretamente (mais rápido que loop)
+    path_res = requests.get(f"{GRAPH_BASE}/me/drive/root:/{folder_path}", headers=headers)
+    if path_res.status_code == 200:
+        res_json = path_res.json()
+        return res_json.get('id'), res_json.get('webUrl')
+    
+    # Se não existe, cria recursivamente (mantendo compatibilidade)
     parts = folder_path.strip('/').split('/')
     parent_id = "root"
-    
+    web_url = ""
     for part in parts:
         search_res = requests.get(f"{GRAPH_BASE}/me/drive/items/{parent_id}/children", headers=headers).json().get("value", [])
         found = next((i for i in search_res if i['name'] == part), None)
         if found:
             parent_id = found['id']
+            web_url = found['webUrl']
         else:
-            create_payload = {"name": part, "folder": {}, "@microsoft.graph.conflictBehavior": "replace"}
+            create_payload = {"name": part, "folder": {}, "@microsoft.graph.conflictBehavior": "fail"}
             create_res = requests.post(f"{GRAPH_BASE}/me/drive/items/{parent_id}/children", headers=headers, json=create_payload).json()
             parent_id = create_res.get('id', parent_id)
-    return parent_id
+            web_url = create_res.get('webUrl')
+    return parent_id, web_url
 
 def upload_to_drive(token, file_url, filename, folder_id):
     headers = {"Authorization": f"Bearer {token}"}
@@ -533,7 +542,7 @@ async def handle_reference_action(request: Request):
     
     # 1. Arquivar Anexos no OneDrive se solicitado
     if dest_type == "onedrive":
-        folder_id = get_or_create_drive_folder(token, f"GTD_Referencia/{category}")
+        folder_id, drive_url = get_or_create_drive_folder(token, f"GTD_Referencia/{category}")
         
         # Buscar anexos do item
         if item['type'] == 'email':
@@ -555,6 +564,8 @@ async def handle_reference_action(request: Request):
                     requests.put(f"{GRAPH_BASE}/me/drive/items/{folder_id}:/{att['name']}:/content", 
                                  headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}, 
                                  data=content)
+        
+        return {"status": "success", "message": f"Arquivos salvos em GTD_Referencia/{category}", "url": drive_url}
     
     # 2. Criar Página no OneNote (Usa IA para categorizar se for Geral)
     if dest_type == "onenote":
