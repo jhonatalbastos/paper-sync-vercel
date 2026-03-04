@@ -17,7 +17,7 @@ load_dotenv()
 try:
     from api.pdf_utils import generate_gtd_page
     from api.vision_utils import process_scan, get_unprocessed_inbox_notes, mark_note_as_processed, save_page_snapshot
-    from api.groq_utils import process_scan_with_ai, get_weekly_review_guidance
+    from api.groq_utils import process_scan_with_ai, get_weekly_review_guidance, categorize_reference_with_ai
 except ImportError:
     import pdf_utils
     import vision_utils
@@ -158,7 +158,22 @@ def upload_to_drive(token, file_url, filename, folder_id):
     file_content = requests.get(file_url, headers=headers).content
     upload_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}
     r = requests.put(f"{GRAPH_BASE}/me/drive/items/{folder_id}:/{filename}:/content", headers=upload_headers, data=file_content)
-    return r.status_code in [200, 201]
+def get_or_create_onenote_section(token, section_name):
+    headers = {"Authorization": f"Bearer {token}"}
+    # 1. Buscar ou criar o Caderno "GTD_Referencia"
+    nb_res = requests.get(f"{GRAPH_BASE}/me/onenote/notebooks", headers=headers).json().get("value", [])
+    nb = next((n for n in nb_res if n['displayName'] == "GTD_Referencia"), None)
+    if not nb:
+        nb = requests.post(f"{GRAPH_BASE}/me/onenote/notebooks", headers=headers, json={"displayName": "GTD_Referencia"}).json()
+    
+    nb_id = nb.get('id')
+    # 2. Buscar ou criar a Seção
+    sec_res = requests.get(f"{GRAPH_BASE}/me/onenote/notebooks/{nb_id}/sections", headers=headers).json().get("value", [])
+    sec = next((s for s in sec_res if s['displayName'] == section_name), None)
+    if not sec:
+        sec = requests.post(f"{GRAPH_BASE}/me/onenote/notebooks/{nb_id}/sections", headers=headers, json={"displayName": section_name}).json()
+    
+    return sec.get('id')
 
 # --- ENDPOINTS ATUALIZADOS ---
 
@@ -540,8 +555,40 @@ async def handle_reference_action(request: Request):
                     requests.put(f"{GRAPH_BASE}/me/drive/items/{folder_id}:/{att['name']}:/content", 
                                  headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}, 
                                  data=content)
+    
+    # 2. Criar Página no OneNote (Usa IA para categorizar se for Geral)
+    if dest_type == "onenote":
+        content_text = item.get('title') or item.get('subject') or item.get('text') or "Sem título"
+        if category == "Geral":
+            category = categorize_reference_with_ai(content_text)
+            
+        section_id = get_or_create_onenote_section(token, category)
+        
+        # HTML para a página
+        body_content = item.get('body_content') or "Conteúdo original não disponível."
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>{content_text}</title>
+            <meta name="created" content="{datetime.now().isoformat()}" />
+          </head>
+          <body>
+            <h1>{content_text}</h1>
+            <p style="color:gray;">Arquivado via PaperSync 365 em {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+            <div style="margin-top:20px; border-top: 1px solid #ccc; padding-top: 10px;">
+                {body_content}
+            </div>
+          </body>
+        </html>
+        """
+        requests.post(
+            f"{GRAPH_BASE}/me/onenote/sections/{section_id}/pages",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/xhtml+xml"},
+            data=html_content.encode('utf-8')
+        )
 
-    # 2. Mover para pasta de Referência no Outlook
+    # 3. Mover para pasta de Referência no Outlook
     if item['type'] == 'email':
         move_outlook_email(token, item['id'], "@Referência")
     

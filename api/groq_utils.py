@@ -109,4 +109,29 @@ def get_weekly_review_guidance(step_index=0):
             current_step["ai_tip"] = "Dica: Mantenha seu ambiente de trabalho organizado durante a revisão."
             
         return current_step
-    return None
+def categorize_reference_with_ai(text):
+    """
+    Usa IA para decidir a melhor seção do OneNote para um item de referência.
+    """
+    prompt = f"""
+    Analise o texto abaixo e decida qual a melhor SEÇÃO do OneNote para arquivá-lo como MATERIAL DE REFERÊNCIA.
+    Responda APENAS o nome da categoria (ex: Financeiro, Estudos, Pessoal, Trabalho, Saúde, Viagens, Ideias).
+    Seja breve.
+
+    Texto: {text}
+    Categoria:
+    """
+    
+    if not GROQ_API_KEY or not client:
+        return "Geral"
+
+    try:
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=20
+        )
+        return completion.choices[0].message.content.strip().replace(".", "")
+    except:
+        return "Geral"

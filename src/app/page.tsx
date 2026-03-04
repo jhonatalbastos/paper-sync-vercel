@@ -488,7 +488,7 @@ export default function Dashboard() {
                 onChange={(e) => setRefCategory(e.target.value)}
                 style={{ width: '100%', height: '24px', fontSize: '0.65rem' }}
               >
-                <option value="Geral">📂 Geral</option>
+                <option value="Geral">📂 Auto-IA (Geral)</option>
                 <option value="Financeiro">🧾 Financeiro (Boletos)</option>
                 <option value="Estudos">📖 Estudos e Leituras</option>
                 <option value="Pessoal">👤 Pessoal (Documentos)</option>
@@ -519,6 +519,35 @@ export default function Dashboard() {
                 }}
               >
                 ☁️ OneDrive
+              </button>
+              <button
+                disabled={loadingForm}
+                title="Criar página de Referência no OneNote (IA categorize)"
+                className="btn-secondary"
+                style={{ height: '24px', padding: '0 8px', fontSize: '0.6rem', background: '#f3e5f5', color: '#7b1fa2', border: '1px solid #ce93d8' }}
+                onClick={async () => {
+                  setLoadingForm(true);
+                  try {
+                    await fetch('/api/clarify/reference', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        token: localStorage.getItem("ms_token"),
+                        item: {
+                          ...item,
+                          type,
+                          list_id: item.list_id || (type === 'tasks' ? data.contexts['Caixa de Entrada']?.[0]?.parent_id : null),
+                          body_content: item.body?.content || item.notes || ""
+                        },
+                        dest_type: 'onenote',
+                        category: refCategory
+                      })
+                    });
+                    setProcessedSession(prev => [{ ...item, processedAt: new Date().toLocaleTimeString() }, ...prev]);
+                    fetchClarifyData();
+                  } finally { setLoadingForm(false); }
+                }}
+              >
+                📓 OneNote
               </button>
               <button
                 disabled={loadingForm || (type !== 'acao' && type !== 'outros' && type !== 'aguardando')}
