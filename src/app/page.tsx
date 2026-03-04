@@ -14,7 +14,7 @@ export default function Dashboard() {
     landscape: any[];
     radar: any[];
     contexts: { [key: string]: any[] };
-    planner_paper?: { projects: any[], waiting: any[], all_by_plan: any };
+    planner_paper: { projects: any[], waiting: any[], all_by_plan: any };
     sync_time: string;
   }
 
@@ -1034,9 +1034,9 @@ export default function Dashboard() {
                 {!collapsedSections["project_tasks"] && (
                   <div className="list">
                     {[
-                      ...data.planner_paper.projects.map(t => ({ ...t, type: 'next' })),
-                      ...data.planner_paper.waiting.map(t => ({ ...t, type: 'delegated' }))
-                    ].map((t, idx) => (
+                      ...(data.planner_paper?.projects || []).map(t => ({ ...t, type: 'next' })),
+                      ...(data.planner_paper?.waiting || []).map(t => ({ ...t, type: 'delegated' }))
+                    ].map((t: any, idx) => (
                       <div key={idx} className="list-item" style={{ fontSize: '0.82rem', padding: '6px 0', borderBottom: '1px solid var(--m3-surface-2)', alignItems: 'flex-start' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                           <div style={{ display: 'flex', gap: '6px' }}>
@@ -1051,7 +1051,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                     ))}
-                    {(data.planner_paper.projects.length + data.planner_paper.waiting.length) === 0 && (
+                    {((data.planner_paper?.projects?.length || 0) + (data.planner_paper?.waiting?.length || 0)) === 0 && (
                       <p style={{ fontSize: '0.8rem', opacity: 0.5, padding: '10px 0' }}>Nenhuma ação pendente nos projetos ativos.</p>
                     )}
                   </div>
